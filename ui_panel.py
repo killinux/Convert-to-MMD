@@ -2,6 +2,11 @@ import bpy
 import os
 import json
 
+ARM_BEND_THRESHOLD = 3.0  # 与 pose_operator.py 保持一致
+
+from datetime import datetime as _dt
+INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 孤立骨父级链优先+D系映射)"
+
 class OBJECT_OT_load_preset(bpy.types.Operator):
     bl_idname = "object.load_preset"
     bl_label = "Load Preset"
@@ -34,6 +39,8 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
+        # 版本时间戳（用于确认安装成功）
+        layout.label(text=f"v: {INSTALL_TIME}", icon='INFO')
 
         # 检查活动对象是否为骨架
         obj = context.active_object
@@ -252,23 +259,172 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             row.operator("object.import_preset", text="导入预设")
             row.operator("object.export_preset", text="导出预设")
 
-            # 添加T-Pose到A-Pose转换按钮
-            layout.operator("object.convert_to_apose", text="转换为A-Pose")
+            # A-Pose 区域（带手臂关节检测）
+            apose_box = layout.box()
+            apose_box.label(text="A-Pose 转换", icon='ARMATURE_DATA')
 
-            # 添加重命名按钮和补全缺失骨骼按钮到同一行
+            # 第一行：检测 + 转A-Pose
+            row = apose_box.row(align=True)
+            row.operator("object.check_arm_straightness", text="0. 检测手臂关节", icon='VIEWZOOM')
+            row.operator("object.convert_to_apose", text="转A-Pose", icon='POSE_HLT')
+
+            # 检测结果显示
+            if scene.arm_check_done:
+                if scene.arm_check_has_problem:
+                    r = apose_box.row()
+                    r.alert = True
+                    r.label(
+                        text=f"肘弯曲：左 {scene.arm_check_left_bend:.1f}°  右 {scene.arm_check_right_bend:.1f}°",
+                        icon='ERROR'
+                    )
+                    lw = getattr(scene, "arm_check_left_wrist", 0.0)
+                    rw = getattr(scene, "arm_check_right_wrist", 0.0)
+                    if lw > ARM_BEND_THRESHOLD or rw > ARM_BEND_THRESHOLD:
+                        r2 = apose_box.row()
+                        r2.alert = True
+                        r2.label(
+                            text=f"腕弯曲：左 {lw:.1f}°  右 {rw:.1f}°",
+                            icon='ERROR'
+                        )
+                    fix_row = apose_box.row(align=True)
+                    fix_row.alert = True
+                    fix_row.operator("object.fix_elbow_straightness", text="0b. 修复肘弯曲", icon='BONE_DATA')
+                    fix_row.operator("object.fix_wrist_straightness", text="0c. 修复腕弯曲", icon='BONE_DATA')
+                else:
+                    row2 = apose_box.row()
+                    row2.label(
+                        text=f"关节笔直  肘 左{scene.arm_check_left_bend:.1f}° 右{scene.arm_check_right_bend:.1f}°",
+                        icon='CHECKMARK'
+                    )
+
+            # 步骤1-6：骨骼结构搭建
             row = layout.row()
-            row.operator("object.rename_to_mmd", text="1.重命名为MMD")
-            row.operator("object.complete_missing_bones", text="2.补全缺失骨骼")
+            row.operator("object.rename_to_mmd", text="1. 重命名为MMD")
+            row.operator("object.complete_missing_bones", text="2. 补全缺失骨骼")
 
-            # 添加IK按钮和创建骨骼集合按钮到同一行
+            layout.operator("object.split_spine_shoulder", text="3. 骨骼切分（spine/shoulder）", icon='BONE_DATA')
+
             row = layout.row()
-            row.operator("object.add_mmd_ik", text="3.添加MMD IK")
-            row.operator("object.create_bone_group", text="4.创建骨骼集合")
+            row.operator("object.add_mmd_ik", text="4. 添加MMD IK")
+            row.operator("object.create_bone_group", text="5. 创建骨骼集合")
 
-            # 添加“使用mmdtools转换格式”按钮到最下方
+            layout.operator("object.add_twist_bones", text="6. 添加扭转骨骼（腕捩/手捩）", icon='CON_ROTLIKE')
+
+            layout.separator(factor=0.5)
+
+            # 步骤7/8：权重检查与修复
+            weight_box = layout.box()
+            weight_box.label(text="权重检查与修复", icon='WPAINT_HLT')
+
+            # ── 7. 孤立骨（非MMD骨有权重） ──
+            row = weight_box.row(align=True)
+            row.operator("object.check_orphan_weights", text="7. 检查孤立骨", icon='VIEWZOOM')
+            if scene.weight_orphan_check_done:
+                if scene.weight_orphan_count == 0:
+                    weight_box.label(text="✅ 无孤立骨", icon='CHECKMARK')
+                else:
+                    r = weight_box.row()
+                    r.alert = True
+                    r.label(text=f"⚠️ {scene.weight_orphan_count} 个孤立骨待转移", icon='ERROR')
+                    if scene.weight_orphan_preview:
+                        for line in scene.weight_orphan_preview.split(' | ')[:4]:
+                            weight_box.label(text=f"  {line}", icon='BLANK1')
+                    weight_box.operator("object.fix_orphan_weights",
+                                        text="修复：转移到最近MMD骨", icon='BONE_DATA')
+
+            weight_box.separator(factor=0.5)
+
+            # ── 8. MMD变形骨缺失权重 ──
+            row = weight_box.row(align=True)
+            row.operator("object.check_missing_weights", text="8. 检查缺失MMD骨权重", icon='VIEWZOOM')
+            if scene.weight_missing_check_done:
+                if scene.weight_missing_count == 0:
+                    weight_box.label(text="✅ 所有MMD变形骨均有权重", icon='CHECKMARK')
+                else:
+                    r = weight_box.row()
+                    r.alert = True
+                    r.label(text=f"⚠️ {scene.weight_missing_count} 个MMD骨无权重", icon='ERROR')
+                    if scene.weight_missing_names:
+                        for line in scene.weight_missing_names.split(' | ')[:4]:
+                            weight_box.label(text=f"  {line}", icon='BLANK1')
+                    weight_box.operator("object.fix_missing_weights",
+                                        text="修复：从祖先分配权重", icon='WPAINT_HLT')
+
+            # ── 手动权重转移（可选，任意骨骼名均可） ──
+            weight_box.separator(factor=0.5)
+            weight_box.label(text="手动转移权重（可选）", icon='BONE_DATA')
+            weight_box.prop_search(scene, "weight_manual_src", obj.data, "bones", text="源骨骼")
+            weight_box.prop_search(scene, "weight_manual_dst", obj.data, "bones", text="目标骨骼")
+            weight_box.operator("object.manual_weight_transfer",
+                                text="转移：源骨骼权重 → 目标骨骼", icon='FORWARD')
+
+            layout.separator(factor=0.5)
+
+            # 步骤9/10：网格与材质
+            layout.operator("object.merge_meshes", text="9. 网格合并", icon='OBJECT_DATA')
+            layout.operator("object.convert_materials_to_mmd", text="10. 材质转换（→MMD格式）", icon='MATERIAL')
+
+            layout.separator()
+            # 导出区域
+            export_box = layout.box()
+            export_box.label(text="导出 PMX", icon='EXPORT')
+            export_box.operator("mmd_tools.convert_to_mmd_model", text="10.转换为 MMD 模型结构", icon='OUTLINER_OB_ARMATURE')
+            export_box.operator("mmd_tools.export_pmx", text="11.导出 PMX", icon='EXPORT')
+
+            layout.separator()
+            # 一键全流程（串联所有步骤）
+            layout.operator("object.auto_convert_to_mmd", text="一键全流程转换", icon='PLAY')
+
+            layout.separator()
             layout.operator("object.use_mmd_tools_convert", text="使用mmdtools转换格式")
         # 骨骼清理选项卡
         elif scene.my_enum == 'option2':
             row = layout.row()
             row.operator("object.clear_unweighted_bones", text="清理无权重骨骼", icon='X')
-            row.operator("object.merge_single_child_bones", text="合并单子级骨骼", icon='CONSTRAINT_BONE')            
+            row.operator("object.merge_single_child_bones", text="合并单子级骨骼", icon='CONSTRAINT_BONE')
+
+            layout.separator()
+            # 权重验证区域
+            box = layout.box()
+            box.label(text="权重验证", icon='ARMATURE_DATA')
+            box.operator("object.verify_weights", text="7.运行权重验证", icon='CHECKMARK')
+
+            # 修复非变形骨权重按钮（无论验证是否运行，均显示）
+            box.operator("object.fix_nondeform_weights",
+                         text="修复头发/非变形骨权重", icon='BRUSH_DATA')
+
+            if scene.weight_verify_done:
+                orphan = scene.weight_verify_orphan_vgs
+                unweighted = scene.weight_verify_unweighted_verts
+                no_vg = scene.weight_verify_bones_without_vg
+                nondeform = getattr(scene, 'weight_verify_nondeform_verts', 0)
+                nondeform_names = getattr(scene, 'weight_verify_nondeform_names', '')
+
+                # 非变形骨权重状态
+                row = box.row()
+                if nondeform == 0:
+                    row.label(text=f"非变形骨权重: 0  ✅", icon='CHECKMARK')
+                else:
+                    row.label(text=f"非变形骨权重: {nondeform} 顶点 ⚠️", icon='ERROR')
+                    if nondeform_names:
+                        box.label(text=f"涉及骨骼: {nondeform_names}", icon='INFO')
+
+                # 孤儿顶点组状态
+                row = box.row()
+                if orphan == 0:
+                    row.label(text=f"孤儿顶点组: 0  ✅", icon='CHECKMARK')
+                else:
+                    row.label(text=f"孤儿顶点组: {orphan} ⚠️", icon='ERROR')
+                    if scene.weight_verify_orphan_names:
+                        box.label(text=scene.weight_verify_orphan_names, icon='INFO')
+                    box.operator("object.clean_orphan_vertex_groups", text="一键清理孤儿顶点组", icon='TRASH')
+
+                # 无权重顶点状态
+                row = box.row()
+                if unweighted == 0:
+                    row.label(text=f"无权重顶点: 0  ✅", icon='CHECKMARK')
+                else:
+                    row.label(text=f"无权重顶点: {unweighted} ❌", icon='ERROR')
+
+                # 无顶点组骨骼（控制骨，允许的）
+                box.label(text=f"控制骨（无顶点组）: {no_vg}", icon='INFO')

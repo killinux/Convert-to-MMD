@@ -35,7 +35,7 @@ BONE_GROUP_PRESETS, PRESET_BONES = load_bone_presets()
 
 class OBJECT_OT_create_bone_group(bpy.types.Operator):
     bl_idname = "object.create_bone_group"
-    bl_label = "创建骨骼集合"
+    bl_label = "5. 创建骨骼集合"
     bl_description = "根据Blender版本自动创建骨骼组或骨骼集合"
 
     use_presets: BoolProperty(
