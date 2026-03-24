@@ -95,8 +95,9 @@ class OBJECT_OT_complete_missing_bones(bpy.types.Operator):
         upper_body_bone = edit_bones.get("上半身")
         lower_body_bone = edit_bones.get("下半身")
         upper_body_2_bone = edit_bones.get("上半身2")
-        left_eye_bone = edit_bones.get("目.L")
-        right_eye_bone = edit_bones.get("目.R")
+        # 兼容两种命名：标准 目.L/目.R 和 日文 左目/右目
+        left_eye_bone = edit_bones.get("目.L") or edit_bones.get("左目")
+        right_eye_bone = edit_bones.get("目.R") or edit_bones.get("右目")
         head_bone = edit_bones.get("頭")
 
         # 清除 左足 和 右足 骨骼的父级

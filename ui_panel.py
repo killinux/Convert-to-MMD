@@ -5,7 +5,7 @@ import json
 ARM_BEND_THRESHOLD = 3.0  # 与 pose_operator.py 保持一致
 
 from datetime import datetime as _dt
-INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 孤立骨父级链优先+D系映射)"
+INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: A-Pose流程顺序+眼骨兼容)"
 
 class OBJECT_OT_load_preset(bpy.types.Operator):
     bl_idname = "object.load_preset"
@@ -259,14 +259,17 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             row.operator("object.import_preset", text="导入预设")
             row.operator("object.export_preset", text="导出预设")
 
-            # A-Pose 区域（带手臂关节检测）
+            # ══════════════════════════════════════════════
+            # A-Pose 区域（⚠️ 必须在步骤1之前完成！）
+            # ══════════════════════════════════════════════
             apose_box = layout.box()
-            apose_box.label(text="A-Pose 转换", icon='ARMATURE_DATA')
+            r_title = apose_box.row()
+            r_title.alert = True
+            r_title.label(text="⚠️ A-Pose 转换（必须在步骤1之前完成！）", icon='ERROR')
 
-            # 第一行：检测 + 转A-Pose
-            row = apose_box.row(align=True)
-            row.operator("object.check_arm_straightness", text="0. 检测手臂关节", icon='VIEWZOOM')
-            row.operator("object.convert_to_apose", text="转A-Pose", icon='POSE_HLT')
+            # 第一步：检测关节
+            apose_box.operator("object.check_arm_straightness",
+                               text="0a. 检测手臂关节", icon='VIEWZOOM')
 
             # 检测结果显示
             if scene.arm_check_done:
@@ -274,7 +277,7 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                     r = apose_box.row()
                     r.alert = True
                     r.label(
-                        text=f"肘弯曲：左 {scene.arm_check_left_bend:.1f}°  右 {scene.arm_check_right_bend:.1f}°",
+                        text=f"⚠️ 肘弯曲：左 {scene.arm_check_left_bend:.1f}°  右 {scene.arm_check_right_bend:.1f}°",
                         icon='ERROR'
                     )
                     lw = getattr(scene, "arm_check_left_wrist", 0.0)
@@ -283,19 +286,35 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                         r2 = apose_box.row()
                         r2.alert = True
                         r2.label(
-                            text=f"腕弯曲：左 {lw:.1f}°  右 {rw:.1f}°",
+                            text=f"⚠️ 腕弯曲：左 {lw:.1f}°  右 {rw:.1f}°",
                             icon='ERROR'
                         )
+                    # 第二步：修复弯曲（有问题时显示）
                     fix_row = apose_box.row(align=True)
                     fix_row.alert = True
                     fix_row.operator("object.fix_elbow_straightness", text="0b. 修复肘弯曲", icon='BONE_DATA')
                     fix_row.operator("object.fix_wrist_straightness", text="0c. 修复腕弯曲", icon='BONE_DATA')
+                    apose_box.label(text="修复完成后重新检测，确认 ✅ 后再转A-Pose", icon='INFO')
                 else:
                     row2 = apose_box.row()
                     row2.label(
-                        text=f"关节笔直  肘 左{scene.arm_check_left_bend:.1f}° 右{scene.arm_check_right_bend:.1f}°",
+                        text=f"✅ 关节笔直  肘 左{scene.arm_check_left_bend:.1f}° 右{scene.arm_check_right_bend:.1f}°",
                         icon='CHECKMARK'
                     )
+
+            # 最后一步：转A-Pose（始终显示在最底部）
+            apose_box.separator(factor=0.3)
+            r_apose = apose_box.row()
+            if scene.arm_check_done and scene.arm_check_has_problem:
+                r_apose.alert = True
+                r_apose.operator("object.convert_to_apose",
+                                 text="0d. 转A-Pose（建议先修复弯曲！）", icon='POSE_HLT')
+            elif not scene.arm_check_done:
+                r_apose.operator("object.convert_to_apose",
+                                 text="0d. 转A-Pose（建议先检测关节）", icon='POSE_HLT')
+            else:
+                r_apose.operator("object.convert_to_apose",
+                                 text="0d. 转A-Pose ✅", icon='POSE_HLT')
 
             # 步骤1-6：骨骼结构搭建
             row = layout.row()
