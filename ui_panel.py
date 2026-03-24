@@ -5,7 +5,7 @@ import json
 ARM_BEND_THRESHOLD = 3.0  # 与 pose_operator.py 保持一致
 
 from datetime import datetime as _dt
-INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: A-Pose流程顺序+眼骨兼容)"
+INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 髋部渐变过渡区)"
 
 class OBJECT_OT_load_preset(bpy.types.Operator):
     bl_idname = "object.load_preset"
@@ -487,6 +487,30 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                     r.label(text=f"❌ {cnt} 个冲突顶点  →  Weight Paint 查看「冲突顶点」组", icon='ERROR')
                     conf_box.operator("object.cleanup_leg_conflict",
                                       text="一键修复：移除D系区域的下半身/腰权重", icon='BRUSH_DATA')
+
+            layout.separator()
+            # ══════════════════════════════════════════════
+            # 髋部渐变区 检查 + 修复（通用，XPS/DAZ/CC3 等模型均适用）
+            # ══════════════════════════════════════════════
+            hip_box = layout.box()
+            hip_box.label(text="髋部渐变区（腰腿权重过渡）", icon='MOD_SMOOTH')
+            hip_box.label(text="修复 XPS/DAZ 等二值权重导致的腰部硬切割", icon='INFO')
+            row = hip_box.row(align=True)
+            row.operator("object.check_hip_blend_zone", text="检查", icon='VIEWZOOM')
+            row.operator("object.fix_hip_blend_zone",   text="修复", icon='BRUSH_DATA')
+
+            if scene.hip_blend_check_done:
+                lb = scene.hip_blend_left_binary
+                rb = scene.hip_blend_right_binary
+                lm = scene.hip_blend_left_count
+                rm = scene.hip_blend_right_count
+                if lb > 100 or rb > 100:
+                    r = hip_box.row()
+                    r.alert = True
+                    r.label(text=f"⚠️ 硬切割顶点：左={lb}  右={rb}  → 需要修复", icon='ERROR')
+                    hip_box.label(text=f"已混合顶点：左={lm}  右={rm}", icon='INFO')
+                else:
+                    hip_box.label(text=f"✅ 过渡区正常  混合顶点：左={lm}  右={rm}", icon='CHECKMARK')
 
             layout.separator()
             # ══════════════════════════════════════════════

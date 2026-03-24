@@ -52,6 +52,8 @@ def register():
     bpy.utils.register_class(bone_operator.OBJECT_OT_fix_missing_weights)
     bpy.utils.register_class(bone_operator.OBJECT_OT_check_fix_missing_weights)
     bpy.utils.register_class(bone_operator.OBJECT_OT_cleanup_leg_conflict)
+    bpy.utils.register_class(bone_operator.OBJECT_OT_check_hip_blend_zone)
+    bpy.utils.register_class(bone_operator.OBJECT_OT_fix_hip_blend_zone)
     bpy.utils.register_class(bone_operator.OBJECT_OT_manual_weight_transfer)
     bpy.utils.register_class(preset_operator.OBJECT_OT_fill_from_selection_specific)
     bpy.utils.register_class(preset_operator.OBJECT_OT_export_preset)
@@ -138,6 +140,12 @@ def register():
     bpy.types.Scene.weight_missing_check_done = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.weight_missing_count = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_missing_names = bpy.props.StringProperty(default="")
+    # 髋部渐变区检查结果
+    bpy.types.Scene.hip_blend_check_done   = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.hip_blend_left_count   = bpy.props.IntProperty(default=0)
+    bpy.types.Scene.hip_blend_right_count  = bpy.props.IntProperty(default=0)
+    bpy.types.Scene.hip_blend_left_binary  = bpy.props.IntProperty(default=0)
+    bpy.types.Scene.hip_blend_right_binary = bpy.props.IntProperty(default=0)
 
 def unregister():
     # 注销所有类
@@ -151,6 +159,8 @@ def unregister():
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_fix_missing_weights)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_check_fix_missing_weights)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_cleanup_leg_conflict)
+    bpy.utils.unregister_class(bone_operator.OBJECT_OT_check_hip_blend_zone)
+    bpy.utils.unregister_class(bone_operator.OBJECT_OT_fix_hip_blend_zone)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_manual_weight_transfer)
     bpy.utils.unregister_class(preset_operator.OBJECT_OT_fill_from_selection_specific)
     bpy.utils.unregister_class(preset_operator.OBJECT_OT_export_preset)
@@ -188,6 +198,8 @@ def unregister():
                  "weight_manual_src", "weight_manual_dst",
                  "weight_orphan_check_done", "weight_orphan_count", "weight_orphan_preview",
                  "weight_missing_check_done", "weight_missing_count", "weight_missing_names",
+                 "hip_blend_check_done", "hip_blend_left_count", "hip_blend_right_count",
+                 "hip_blend_left_binary", "hip_blend_right_binary",
                  "arm_check_done", "arm_check_has_problem",
                  "arm_check_left_bend", "arm_check_right_bend",
                  "arm_check_left_wrist", "arm_check_right_wrist"]:

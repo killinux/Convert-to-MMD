@@ -1,5 +1,8 @@
 # Convert to MMD Addon for Blender
 
+/Users/bytedance/Library/Application Support/Blender/3.6/scripts/addons/
+
+
 ## 描述
 该插件用于将Blender中的其他骨骼结构转换为符合MMD（MikuMikuDance）格式的骨骼名称和结构。插件提供了多种功能，包括骨骼重命名、缺失骨骼补全、预设导出与导入以及IK链的添加。
 

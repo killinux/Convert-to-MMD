@@ -379,12 +379,94 @@ class OBJECT_OT_complete_missing_bones(bpy.types.Operator):
                             break
                     vg1.add([v.index], min(1.0, cur_w1 + w2 * ratio_ub1), 'REPLACE')
 
-        self.report({'INFO'}, "补全骨骼权重完成：D系腿骨已复制，上半身1已分配")
+        # ── 3. 髋部渐变过渡区 ───────────────────────────────────────────────
+        # XPS 权重是二值的（足D在髋部全是1.0），没有腰腿过渡混合，
+        # 会导致骨骼运动时出现硬切割（裂口感）。
+        # 在 足D.L/R 权重范围顶部做渐变，将边界处的足D权重逐步转移给下半身。
+        hip_modified = _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5)
+        if hip_modified > 0:
+            self.report({'INFO'}, f"补全完成：D系腿骨已复制，上半身1已分配，髋部渐变区已创建（{hip_modified}顶点）")
+        else:
+            self.report({'INFO'}, "补全骨骼权重完成：D系腿骨已复制，上半身1已分配")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 共享工具函数
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
+    """
+    在髋部（足D.L/R 权重范围顶端）创建下半身权重渐变过渡区。
+
+    XPS 原始权重是二值的：足D 在整条大腿上全是 1.0，没有髋部渐变。
+    这导致下半身和足D 的边界是"硬切割"，骨骼运动时出现裂口。
+
+    本函数在 足D.L/R 权重的顶部 transition_height（默认1.5单位）范围内，
+    将足D权重按高度比例逐渐转移给下半身：
+      - 底部（Z = max_Z - transition_height）：不转移，保持纯足D
+      - 顶部（Z = max_Z）：完全转移，足D=0，下半身获得原足D权重
+
+    返回修改的顶点数。
+    """
+    BLEND_PAIRS = [("足D.L", "下半身"), ("足D.R", "下半身")]
+    total_modified = 0
+
+    for obj in mesh_objects:
+        mw = obj.matrix_world
+
+        for d_bone, shimono_bone in BLEND_PAIRS:
+            vg_d = obj.vertex_groups.get(d_bone)
+            vg_s = obj.vertex_groups.get(shimono_bone)
+            if not vg_d or not vg_s:
+                continue
+
+            idx_d = vg_d.index
+            idx_s = vg_s.index
+
+            # 找 足D 在世界坐标中的最高 Z
+            z_vals = [(mw @ v.co).z
+                      for v in obj.data.vertices
+                      for g in v.groups
+                      if g.group == idx_d and g.weight > 0.001]
+            if not z_vals:
+                continue
+            z_max = max(z_vals)
+            z_blend_start = z_max - transition_height
+
+            for v in obj.data.vertices:
+                vz = (mw @ v.co).z
+                if vz <= z_blend_start:
+                    continue  # 在渐变区以下，不动
+
+                # 找该顶点的 足D 权重
+                wd = 0.0
+                for g in v.groups:
+                    if g.group == idx_d:
+                        wd = g.weight
+                        break
+                if wd <= 0.001:
+                    continue  # 该顶点没有足D权重，跳过
+
+                # 渐变因子 t：底部=0（不转移），顶部=1（全部转移给下半身）
+                t = max(0.0, min(1.0, (vz - z_blend_start) / transition_height))
+                transfer = wd * t
+                if transfer < 0.0005:
+                    continue
+
+                # 足D 权重减少
+                vg_d.add([v.index], wd - transfer, 'REPLACE')
+
+                # 下半身 权重增加
+                ws = 0.0
+                for g in v.groups:
+                    if g.group == idx_s:
+                        ws = g.weight
+                        break
+                vg_s.add([v.index], ws + transfer, 'REPLACE')
+                total_modified += 1
+
+    return total_modified
+
 
 def _weight_is_orphan(bone_name):
     """判断骨骼是否为非MMD孤立骨。
@@ -884,6 +966,117 @@ class OBJECT_OT_cleanup_leg_conflict(bpy.types.Operator):
         else:
             self.report({'INFO'}, "✅ 无冲突权重，无需清理")
         return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 独立的髋部渐变过渡区 检查 + 修复（通用，适用于任何 XPS/DAZ/CC3 等来源模型）
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OBJECT_OT_check_hip_blend_zone(bpy.types.Operator):
+    """检查髋部（下半身↔足D.L/R）是否存在权重渐变过渡区。
+    XPS/DAZ 等来源模型的权重通常是二值的，会导致腰骨运动时出现硬切割。"""
+    bl_idname = "object.check_hip_blend_zone"
+    bl_label = "检查髋部渐变区"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选择骨架对象")
+            return {'CANCELLED'}
+        mesh_objects = _weight_get_mesh_objects(context, armature)
+        if not mesh_objects:
+            self.report({'WARNING'}, "未找到绑定网格")
+            return {'CANCELLED'}
+
+        result = _check_hip_blend_zone(mesh_objects)
+        scene = context.scene
+        scene.hip_blend_check_done  = True
+        scene.hip_blend_left_count  = result["left_blend"]
+        scene.hip_blend_right_count = result["right_blend"]
+        scene.hip_blend_left_binary = result["left_binary"]
+        scene.hip_blend_right_binary = result["right_binary"]
+
+        if result["left_binary"] > 100 or result["right_binary"] > 100:
+            self.report({'WARNING'},
+                f"髋部过渡区为二值权重：左={result['left_binary']}个硬边顶点  右={result['right_binary']}个  "
+                f"（过渡混合顶点：左={result['left_blend']}  右={result['right_blend']}）"
+                f" → 建议点「修复」")
+        else:
+            self.report({'INFO'},
+                f"✅ 髋部渐变区正常（混合顶点：左={result['left_blend']}  右={result['right_blend']}）")
+        return {'FINISHED'}
+
+
+class OBJECT_OT_fix_hip_blend_zone(bpy.types.Operator):
+    """修复髋部渐变区：在足D.L/R权重范围顶部创建下半身权重渐变，
+    解决 XPS/DAZ/CC3 等来源模型的腰骨运动硬切割问题。"""
+    bl_idname = "object.fix_hip_blend_zone"
+    bl_label = "修复髋部渐变区"
+
+    transition_height: bpy.props.FloatProperty(
+        name="渐变高度",
+        description="足D顶部往下多少单位开始渐变（默认1.5，可根据模型比例调整）",
+        default=1.5, min=0.3, max=5.0
+    )
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选择骨架对象")
+            return {'CANCELLED'}
+        mesh_objects = _weight_get_mesh_objects(context, armature)
+        if not mesh_objects:
+            self.report({'WARNING'}, "未找到绑定网格")
+            return {'CANCELLED'}
+
+        modified = _create_hip_blend_zone(armature, mesh_objects, self.transition_height)
+        context.scene.hip_blend_check_done = False  # 重置，需重新检查
+
+        if modified > 0:
+            self.report({'INFO'},
+                f"✅ 髋部渐变区已创建（修改 {modified} 个顶点，渐变高度={self.transition_height:.1f}）")
+        else:
+            self.report({'WARNING'}, "未找到需要渐变的顶点（足D.L/R 或 下半身 不存在）")
+        return {'FINISHED'}
+
+
+def _check_hip_blend_zone(mesh_objects):
+    """统计髋部过渡区的状态：有多少顶点已经混合，有多少还是二值。"""
+    result = {"left_blend": 0, "right_blend": 0, "left_binary": 0, "right_binary": 0}
+    for obj in mesh_objects:
+        for d_bone, key_blend, key_binary in [
+            ("足D.L", "left_blend",  "left_binary"),
+            ("足D.R", "right_blend", "right_binary"),
+        ]:
+            vg_d = obj.vertex_groups.get(d_bone)
+            vg_s = obj.vertex_groups.get("下半身")
+            if not vg_d or not vg_s:
+                continue
+            idx_d, idx_s = vg_d.index, vg_s.index
+            mw = obj.matrix_world
+
+            z_vals = [(mw @ v.co).z for v in obj.data.vertices
+                      for g in v.groups if g.group == idx_d and g.weight > 0.001]
+            if not z_vals:
+                continue
+            z_max = max(z_vals)
+            z_top_zone = z_max - 1.5  # 只检查顶部 1.5 单位
+
+            for v in obj.data.vertices:
+                vz = (mw @ v.co).z
+                if vz < z_top_zone:
+                    continue
+                wd = ws = 0.0
+                for g in v.groups:
+                    if g.group == idx_d: wd = g.weight
+                    if g.group == idx_s: ws = g.weight
+                if wd <= 0.001:
+                    continue
+                if ws > 0.05:
+                    result[key_blend] += 1   # 已经有混合
+                elif wd > 0.85:
+                    result[key_binary] += 1  # 二值，需要修复
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
