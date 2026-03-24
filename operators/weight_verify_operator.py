@@ -1,5 +1,252 @@
 import bpy
+from mathutils import Vector
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 辅助函数
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_mesh_objects(armature, scene):
+    return [
+        obj for obj in scene.objects
+        if obj.type == 'MESH' and any(
+            m.type == 'ARMATURE' and m.object == armature
+            for m in obj.modifiers
+        )
+    ]
+
+
+def _count_vertices_per_bone(armature, scene):
+    """统计各骨骼的权重顶点数，返回 {bone_name: count}"""
+    counts = {}
+    for obj in _get_mesh_objects(armature, scene):
+        idx_to_name = {vg.index: vg.name for vg in obj.vertex_groups}
+        for v in obj.data.vertices:
+            for g in v.groups:
+                if g.weight > 0.001:
+                    name = idx_to_name.get(g.group)
+                    if name:
+                        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+# 权重冲突规则（不该同时影响同一顶点的骨骼对）
+CONFLICT_PAIRS = [
+    ("足D.L", "下半身"), ("足D.R", "下半身"),
+    ("足D.L", "腰"),     ("足D.R", "腰"),
+    ("ひざD.L", "下半身"), ("ひざD.R", "下半身"),
+    ("ひざD.L", "腰"),    ("ひざD.R", "腰"),
+    ("足首D.L", "下半身"), ("足首D.R", "下半身"),
+    ("足首D.L", "腰"),    ("足首D.R", "腰"),
+]
+CONFLICT_VG_NAME = "冲突顶点"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 功能A：逐骨顶点数对比
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OBJECT_OT_compare_bone_weights(bpy.types.Operator):
+    """对比当前骨架与参考骨架的逐骨顶点数分布，标出差异超过3倍的骨骼"""
+    bl_idname = "object.compare_bone_weights"
+    bl_label = "比较骨骼权重分布"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选中当前骨架")
+            return {'CANCELLED'}
+        ref_arm = getattr(context.scene, 'weight_ref_armature', None)
+        if not ref_arm or ref_arm.type != 'ARMATURE':
+            self.report({'ERROR'}, "请在下方选择参考骨架")
+            return {'CANCELLED'}
+
+        cur_counts = _count_vertices_per_bone(armature, context.scene)
+        ref_counts = _count_vertices_per_bone(ref_arm, context.scene)
+
+        deform_bones = [b.name for b in armature.data.bones if b.use_deform]
+
+        entries = []
+        for bname in deform_bones:
+            cur = cur_counts.get(bname, 0)
+            ref = ref_counts.get(bname, 0)
+            if ref == 0:
+                flag = "📌"
+                sort_key = 999.0
+            else:
+                ratio = cur / ref
+                sort_key = abs(ratio - 1.0)
+                if ratio < 0.3 or ratio > 3.0:
+                    flag = "⚠️"
+                elif 0.7 <= ratio <= 1.4:
+                    flag = "✅"
+                else:
+                    flag = "🔶"
+            entries.append((sort_key, flag, bname, cur, ref))
+
+        entries.sort(key=lambda x: -x[0])
+
+        lines = []
+        for sort_key, flag, bname, cur, ref in entries[:20]:
+            if ref == 0:
+                lines.append(f"{flag} {bname}: 当前={cur} 参考=无")
+            else:
+                ratio = cur / ref
+                lines.append(f"{flag} {bname}: 当前={cur} 参考={ref} ({ratio:.0%})")
+
+        context.scene.weight_compare_result = "||".join(lines)
+        context.scene.weight_compare_done = True
+
+        warn_count = sum(1 for e in entries if e[1] == "⚠️")
+        self.report(
+            {'INFO'} if warn_count == 0 else {'WARNING'},
+            f"对比完成，{warn_count} 个骨骼差异 >3x（共检查 {len(deform_bones)} 块变形骨）"
+        )
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 功能B：冲突顶点高亮
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OBJECT_OT_highlight_conflict_vertices(bpy.types.Operator):
+    """高亮同时受冲突骨骼（如 足D + 下半身）影响的顶点，创建顶点组便于 Weight Paint 查看"""
+    bl_idname = "object.highlight_conflict_vertices"
+    bl_label = "高亮冲突顶点"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选中骨架对象")
+            return {'CANCELLED'}
+
+        mesh_objects = _get_mesh_objects(armature, context.scene)
+        total_conflict = 0
+        conflict_pairs_found = set()
+
+        for obj in mesh_objects:
+            old_vg = obj.vertex_groups.get(CONFLICT_VG_NAME)
+            if old_vg:
+                obj.vertex_groups.remove(old_vg)
+
+            name_to_idx = {vg.name: vg.index for vg in obj.vertex_groups}
+            conflict_indices = []
+
+            for v in obj.data.vertices:
+                weighted_groups = {g.group for g in v.groups if g.weight > 0.001}
+                for bone_a, bone_b in CONFLICT_PAIRS:
+                    idx_a = name_to_idx.get(bone_a)
+                    idx_b = name_to_idx.get(bone_b)
+                    if idx_a is not None and idx_b is not None:
+                        if idx_a in weighted_groups and idx_b in weighted_groups:
+                            conflict_indices.append(v.index)
+                            conflict_pairs_found.add((bone_a, bone_b))
+                            break
+
+            if conflict_indices:
+                cvg = obj.vertex_groups.new(name=CONFLICT_VG_NAME)
+                cvg.add(conflict_indices, 1.0, 'REPLACE')
+                total_conflict += len(conflict_indices)
+
+        context.scene.weight_conflict_count = total_conflict
+        context.scene.weight_conflict_done = True
+
+        if total_conflict == 0:
+            self.report({'INFO'}, "✅ 无冲突顶点，腿部权重干净")
+        else:
+            pairs_str = ", ".join(f"{a}+{b}" for a, b in sorted(conflict_pairs_found)[:3])
+            self.report(
+                {'WARNING'},
+                f"发现 {total_conflict} 个冲突顶点 | "
+                f"切到 Weight Paint 选「{CONFLICT_VG_NAME}」查看 | "
+                f"冲突对: {pairs_str}"
+            )
+        return {'FINISHED'}
+
+
+class OBJECT_OT_clear_conflict_highlight(bpy.types.Operator):
+    """删除冲突顶点标记组（清除高亮，方便下次重新检查）"""
+    bl_idname = "object.clear_conflict_highlight"
+    bl_label = "清除高亮"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选中骨架对象")
+            return {'CANCELLED'}
+
+        removed = 0
+        for obj in _get_mesh_objects(armature, context.scene):
+            vg = obj.vertex_groups.get(CONFLICT_VG_NAME)
+            if vg:
+                obj.vertex_groups.remove(vg)
+                removed += 1
+
+        context.scene.weight_conflict_done = False
+        self.report({'INFO'}, f"已清除 {removed} 个网格的冲突顶点组")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 功能D：摆 Pose 测试
+# ─────────────────────────────────────────────────────────────────────────────
+
+class OBJECT_OT_pose_test(bpy.types.Operator):
+    """摆出抬左腿测试姿势，直观检验腿部权重变形是否正确"""
+    bl_idname = "object.pose_test_raise_leg"
+    bl_label = "摆姿势：抬左腿"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选中骨架对象")
+            return {'CANCELLED'}
+
+        bpy.ops.object.mode_set(mode='POSE')
+
+        IK_NAMES = ["左足ＩＫ", "左足IK"]
+        ik_bone = None
+        for name in IK_NAMES:
+            pb = armature.pose.bones.get(name)
+            if pb:
+                ik_bone = pb
+                break
+
+        if ik_bone is None:
+            bpy.ops.object.mode_set(mode='OBJECT')
+            self.report({'WARNING'}, f"未找到左足IK骨骼（尝试了: {IK_NAMES}），请手动摆姿势")
+            return {'CANCELLED'}
+
+        # 向前上方抬腿
+        ik_bone.location = Vector((0.0, 0.5, 0.3))
+        context.view_layer.update()
+
+        self.report({'INFO'}, f"已设置 {ik_bone.name}，处于 POSE 模式，查看左腿变形效果")
+        return {'FINISHED'}
+
+
+class OBJECT_OT_pose_test_reset(bpy.types.Operator):
+    """恢复骨架到 Rest Pose，清除所有测试姿势变换"""
+    bl_idname = "object.pose_test_reset"
+    bl_label = "恢复 Rest Pose"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选中骨架对象")
+            return {'CANCELLED'}
+
+        bpy.ops.object.mode_set(mode='POSE')
+        bpy.ops.pose.select_all(action='SELECT')
+        bpy.ops.pose.transforms_clear()
+        bpy.ops.object.mode_set(mode='OBJECT')
+        self.report({'INFO'}, "已恢复 Rest Pose")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 原有 Operator（以下保持不变）
+# ─────────────────────────────────────────────────────────────────────────────
 
 class OBJECT_OT_verify_weights(bpy.types.Operator):
     """验证骨骼与顶点组的绑定完整性，检查孤儿顶点组和无权重顶点"""
@@ -39,8 +286,10 @@ class OBJECT_OT_verify_weights(bpy.types.Operator):
         orphan_vgs = all_vg_names - bone_names
 
         # 检查无权重顶点（没有任何权重的顶点）
+        total_vert_count = 0
         unweighted_vert_count = 0
         for obj in mesh_objects:
+            total_vert_count += len(obj.data.vertices)
             for v in obj.data.vertices:
                 if len(v.groups) == 0:
                     unweighted_vert_count += 1
@@ -67,6 +316,7 @@ class OBJECT_OT_verify_weights(bpy.types.Operator):
         context.scene.weight_verify_bones_without_vg = len(bones_without_vg)
         context.scene.weight_verify_orphan_vgs = len(orphan_vgs)
         context.scene.weight_verify_orphan_names = ", ".join(sorted(orphan_vgs)[:10])
+        context.scene.weight_verify_total_verts = total_vert_count
         context.scene.weight_verify_unweighted_verts = unweighted_vert_count
         context.scene.weight_verify_nondeform_verts = nondeform_vert_count
         context.scene.weight_verify_nondeform_names = ", ".join(sorted(nondeform_vg_names)[:5])

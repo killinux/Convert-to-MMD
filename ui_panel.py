@@ -384,47 +384,97 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             row.operator("object.merge_single_child_bones", text="合并单子级骨骼", icon='CONSTRAINT_BONE')
 
             layout.separator()
-            # 权重验证区域
+            # ══════════════════════════════════════════════
+            # 功能C：基础权重验证
+            # ══════════════════════════════════════════════
             box = layout.box()
             box.label(text="权重验证", icon='ARMATURE_DATA')
-            box.operator("object.verify_weights", text="7.运行权重验证", icon='CHECKMARK')
-
-            # 修复非变形骨权重按钮（无论验证是否运行，均显示）
+            box.operator("object.verify_weights", text="运行权重验证", icon='CHECKMARK')
             box.operator("object.fix_nondeform_weights",
                          text="修复头发/非变形骨权重", icon='BRUSH_DATA')
 
             if scene.weight_verify_done:
                 orphan = scene.weight_verify_orphan_vgs
+                total = getattr(scene, 'weight_verify_total_verts', 0)
                 unweighted = scene.weight_verify_unweighted_verts
                 no_vg = scene.weight_verify_bones_without_vg
                 nondeform = getattr(scene, 'weight_verify_nondeform_verts', 0)
                 nondeform_names = getattr(scene, 'weight_verify_nondeform_names', '')
 
-                # 非变形骨权重状态
                 row = box.row()
                 if nondeform == 0:
-                    row.label(text=f"非变形骨权重: 0  ✅", icon='CHECKMARK')
+                    row.label(text="非变形骨权重: 0  ✅", icon='CHECKMARK')
                 else:
                     row.label(text=f"非变形骨权重: {nondeform} 顶点 ⚠️", icon='ERROR')
                     if nondeform_names:
                         box.label(text=f"涉及骨骼: {nondeform_names}", icon='INFO')
 
-                # 孤儿顶点组状态
                 row = box.row()
                 if orphan == 0:
-                    row.label(text=f"孤儿顶点组: 0  ✅", icon='CHECKMARK')
+                    row.label(text="孤儿顶点组: 0  ✅", icon='CHECKMARK')
                 else:
                     row.label(text=f"孤儿顶点组: {orphan} ⚠️", icon='ERROR')
                     if scene.weight_verify_orphan_names:
                         box.label(text=scene.weight_verify_orphan_names, icon='INFO')
-                    box.operator("object.clean_orphan_vertex_groups", text="一键清理孤儿顶点组", icon='TRASH')
+                    box.operator("object.clean_orphan_vertex_groups",
+                                 text="一键清理孤儿顶点组", icon='TRASH')
 
-                # 无权重顶点状态
                 row = box.row()
                 if unweighted == 0:
-                    row.label(text=f"无权重顶点: 0  ✅", icon='CHECKMARK')
+                    row.label(text="无权重顶点: 0  ✅", icon='CHECKMARK')
                 else:
-                    row.label(text=f"无权重顶点: {unweighted} ❌", icon='ERROR')
+                    pct = f" ({unweighted/total:.1%})" if total > 0 else ""
+                    row.label(text=f"无权重顶点: {unweighted}{pct} ❌", icon='ERROR')
 
-                # 无顶点组骨骼（控制骨，允许的）
                 box.label(text=f"控制骨（无顶点组）: {no_vg}", icon='INFO')
+
+            layout.separator()
+            # ══════════════════════════════════════════════
+            # 功能A：逐骨顶点数对比
+            # ══════════════════════════════════════════════
+            cmp_box = layout.box()
+            cmp_box.label(text="逐骨权重分布对比", icon='LINENUMBERS_ON')
+            cmp_box.prop(scene, "weight_ref_armature", text="参考骨架")
+            cmp_box.operator("object.compare_bone_weights",
+                             text="比较骨骼权重分布", icon='DRIVER_DISTANCE')
+
+            if scene.weight_compare_done and scene.weight_compare_result:
+                lines = scene.weight_compare_result.split("||")
+                for line in lines[:12]:
+                    icon = 'ERROR' if '⚠️' in line else ('INFO' if '📌' in line else 'CHECKMARK')
+                    cmp_box.label(text=line, icon=icon)
+                if len(lines) > 12:
+                    cmp_box.label(text=f"... 还有 {len(lines)-12} 条（仅显示前12）", icon='BLANK1')
+
+            layout.separator()
+            # ══════════════════════════════════════════════
+            # 功能B：冲突顶点高亮
+            # ══════════════════════════════════════════════
+            conf_box = layout.box()
+            conf_box.label(text="冲突顶点检查（足D vs 下半身/腰）", icon='MODIFIER_ON')
+            row = conf_box.row(align=True)
+            row.operator("object.highlight_conflict_vertices",
+                         text="高亮冲突顶点", icon='WPAINT_HLT')
+            row.operator("object.clear_conflict_highlight",
+                         text="清除", icon='X')
+
+            if scene.weight_conflict_done:
+                cnt = scene.weight_conflict_count
+                if cnt == 0:
+                    conf_box.label(text="✅ 无冲突顶点，腿部权重干净", icon='CHECKMARK')
+                else:
+                    r = conf_box.row()
+                    r.alert = True
+                    r.label(text=f"❌ {cnt} 个冲突顶点  →  Weight Paint 查看「冲突顶点」组", icon='ERROR')
+
+            layout.separator()
+            # ══════════════════════════════════════════════
+            # 功能D：摆 Pose 测试
+            # ══════════════════════════════════════════════
+            pose_box = layout.box()
+            pose_box.label(text="变形效果测试", icon='POSE_HLT')
+            row = pose_box.row(align=True)
+            row.operator("object.pose_test_raise_leg",
+                         text="摆姿势：抬左腿", icon='ARMATURE_DATA')
+            row.operator("object.pose_test_reset",
+                         text="恢复 Rest Pose", icon='LOOP_BACK')

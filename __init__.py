@@ -70,6 +70,11 @@ def register():
     bpy.utils.register_class(weight_verify_operator.OBJECT_OT_verify_weights)
     bpy.utils.register_class(weight_verify_operator.OBJECT_OT_clean_orphan_vertex_groups)
     bpy.utils.register_class(weight_verify_operator.OBJECT_OT_fix_nondeform_weights)
+    bpy.utils.register_class(weight_verify_operator.OBJECT_OT_compare_bone_weights)
+    bpy.utils.register_class(weight_verify_operator.OBJECT_OT_highlight_conflict_vertices)
+    bpy.utils.register_class(weight_verify_operator.OBJECT_OT_clear_conflict_highlight)
+    bpy.utils.register_class(weight_verify_operator.OBJECT_OT_pose_test)
+    bpy.utils.register_class(weight_verify_operator.OBJECT_OT_pose_test_reset)
     bpy.utils.register_class(mesh_operator.OBJECT_OT_merge_meshes)
     bpy.utils.register_class(material_operator.OBJECT_OT_convert_materials_to_mmd)
     bpy.utils.register_class(auto_convert_operator.OBJECT_OT_auto_convert)
@@ -105,9 +110,22 @@ def register():
     bpy.types.Scene.weight_verify_bones_without_vg = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_verify_orphan_vgs = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_verify_orphan_names = bpy.props.StringProperty(default="")
+    bpy.types.Scene.weight_verify_total_verts = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_verify_unweighted_verts = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_verify_nondeform_verts = bpy.props.IntProperty(default=0)
     bpy.types.Scene.weight_verify_nondeform_names = bpy.props.StringProperty(default="")
+    # 逐骨对比属性
+    bpy.types.Scene.weight_ref_armature = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="参考骨架",
+        description="用于对比权重分布的参考 MMD 模型骨架",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
+    bpy.types.Scene.weight_compare_done = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.weight_compare_result = bpy.props.StringProperty(default="")
+    # 冲突顶点高亮属性
+    bpy.types.Scene.weight_conflict_done = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.weight_conflict_count = bpy.props.IntProperty(default=0)
     # 手动权重转移
     bpy.types.Scene.weight_manual_src = bpy.props.StringProperty(name="源骨骼", default="")
     bpy.types.Scene.weight_manual_dst = bpy.props.StringProperty(name="目标骨骼", default="")
@@ -150,13 +168,21 @@ def unregister():
     bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_verify_weights)
     bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_clean_orphan_vertex_groups)
     bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_fix_nondeform_weights)
+    bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_compare_bone_weights)
+    bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_highlight_conflict_vertices)
+    bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_clear_conflict_highlight)
+    bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_pose_test)
+    bpy.utils.unregister_class(weight_verify_operator.OBJECT_OT_pose_test_reset)
     bpy.utils.unregister_class(mesh_operator.OBJECT_OT_merge_meshes)
     bpy.utils.unregister_class(material_operator.OBJECT_OT_convert_materials_to_mmd)
     bpy.utils.unregister_class(auto_convert_operator.OBJECT_OT_auto_convert)
     del bpy.types.Scene.my_enum
     for prop in ["weight_verify_done", "weight_verify_bones_without_vg", "weight_verify_orphan_vgs",
-                 "weight_verify_orphan_names", "weight_verify_unweighted_verts",
+                 "weight_verify_orphan_names", "weight_verify_total_verts",
+                 "weight_verify_unweighted_verts",
                  "weight_verify_nondeform_verts", "weight_verify_nondeform_names",
+                 "weight_ref_armature", "weight_compare_done", "weight_compare_result",
+                 "weight_conflict_done", "weight_conflict_count",
                  "weight_manual_src", "weight_manual_dst",
                  "weight_orphan_check_done", "weight_orphan_count", "weight_orphan_preview",
                  "weight_missing_check_done", "weight_missing_count", "weight_missing_names",
