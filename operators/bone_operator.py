@@ -851,6 +851,33 @@ class OBJECT_OT_fix_missing_weights(bpy.types.Operator):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 独立的腿部权重冲突清理（D系骨 vs 下半身/腰）
+# ─────────────────────────────────────────────────────────────────────────────
+class OBJECT_OT_cleanup_leg_conflict(bpy.types.Operator):
+    """清理腿部D系骨（足D/ひざD/足首D）与躯干骨（下半身/腰）的权重冲突。
+    当同一顶点同时被D系骨和躯干骨影响时，移除躯干骨权重。"""
+    bl_idname = "object.cleanup_leg_conflict"
+    bl_label = "清理腿部权重冲突（D系 vs 下半身）"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选择骨架对象")
+            return {'CANCELLED'}
+        mesh_objects = _weight_get_mesh_objects(context, armature)
+        if not mesh_objects:
+            self.report({'WARNING'}, "未找到绑定网格")
+            return {'CANCELLED'}
+
+        cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
+        if cleaned:
+            self.report({'INFO'}, f"✅ 已清理 {cleaned} 个冲突权重（D系骨区域移除下半身/腰权重）")
+        else:
+            self.report({'INFO'}, "✅ 无冲突权重，无需清理")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 保留一键合并版本（供自动转换流程调用）
 # ─────────────────────────────────────────────────────────────────────────────
 class OBJECT_OT_check_fix_missing_weights(bpy.types.Operator):

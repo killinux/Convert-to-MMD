@@ -466,6 +466,8 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                     r = conf_box.row()
                     r.alert = True
                     r.label(text=f"❌ {cnt} 个冲突顶点  →  Weight Paint 查看「冲突顶点」组", icon='ERROR')
+                    conf_box.operator("object.cleanup_leg_conflict",
+                                      text="一键修复：移除D系区域的下半身/腰权重", icon='BRUSH_DATA')
 
             layout.separator()
             # ══════════════════════════════════════════════
