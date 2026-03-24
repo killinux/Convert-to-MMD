@@ -403,9 +403,24 @@ class OBJECT_OT_fix_nondeform_weights(bpy.types.Operator):
         # 找备用骨骼（无可变形父级时使用）
         fallback = next((n for n in self.FALLBACK_BONES if arm_data.bones.get(n)), None)
 
-        # 为每个非变形骨计算重定向目标：向上找最近的 use_deform=True 祖先
+        # FK腿骨 → D系骨 优先映射（父链会错误找到下半身，必须硬编码覆盖）
+        LEG_FK_TO_D = {
+            "左足":   "足D.L",   "右足":   "足D.R",
+            "左ひざ": "ひざD.L", "右ひざ": "ひざD.R",
+            "左足首": "足首D.L", "右足首": "足首D.R",
+            "左足先EX": "足先EX.L", "右足先EX": "足先EX.R",
+        }
+
+        # 为每个非变形骨计算重定向目标：优先使用硬编码映射，其次向上找 use_deform=True 祖先
         redirect = {}
         for bname in non_deform:
+            # 优先：FK腿骨直接映射到对应D系骨
+            if bname in LEG_FK_TO_D:
+                target = LEG_FK_TO_D[bname]
+                if arm_data.bones.get(target):
+                    redirect[bname] = target
+                    continue
+
             bone = arm_data.bones.get(bname)
             if not bone:
                 continue
