@@ -575,27 +575,35 @@ def _weight_execute_orphan_transfer(mesh_objects, orphan_target_map, armature=No
 
 
 def _weight_cleanup_leg_torso_conflict(armature, mesh_objects):
-    """清理 D系腿骨 与 躯干骨 之间的权重冲突。
-    当一个顶点同时具有 D系腿骨（足D/ひざD/足首D/足先EX）权重 和 躯干骨（下半身/腰）权重时，
-    将躯干骨权重清零——D系骨负责腿部变形，躯干骨留在腿上会对抗腿部动作。
+    """清理 D系腿骨 与 躯干骨 之间的真实冲突权重。
+
+    ⚠️ 只处理 D系骨权重 >= 0.6（明确处于腿部区域）的顶点，
+    保留 D系骨权重 < 0.6 的混合过渡区（腰臀部自然渐变，不应清除）。
+
+    参考模型（Purifier Inase）中，腰臀过渡区有约3000个顶点
+    同时具有 下半身 和 足D 权重，这是正常的权重混合，不是冲突。
+
     返回清理的顶点数量。"""
+    D_DOMINANT_THRESHOLD = 0.6   # 只在D系权重占主导时才清躯干骨
     d_series = {"足D.L","足D.R","ひざD.L","ひざD.R","足首D.L","足首D.R","足先EX.L","足先EX.R"}
     torso_bones = {"下半身","腰"}
     cleaned = 0
     for obj in mesh_objects:
         # 收集各VG在obj中的index
-        d_indices = {obj.vertex_groups[vg.name].index
+        d_idx_set = {obj.vertex_groups[vg.name].index
                      for n in d_series if (vg := obj.vertex_groups.get(n))}
         torso_vgs = {n: obj.vertex_groups.get(n) for n in torso_bones}
         torso_vgs = {n: vg for n, vg in torso_vgs.items() if vg}
-        if not d_indices or not torso_vgs:
+        if not d_idx_set or not torso_vgs:
             continue
         for v in obj.data.vertices:
-            # 检查该顶点是否有任意D系权重
-            has_d = any(g.group in d_indices and g.weight > 0.001 for g in v.groups)
-            if not has_d:
+            # 计算该顶点的D系总权重
+            d_total = sum(g.weight for g in v.groups
+                          if g.group in d_idx_set and g.weight > 0.001)
+            # 只有D系占主导（>= 阈值）才清除躯干骨权重
+            # 腰臀过渡区（D系 < 0.6）保留混合，防止硬切割
+            if d_total < D_DOMINANT_THRESHOLD:
                 continue
-            # 清除躯干骨权重
             for vg in torso_vgs.values():
                 for g in v.groups:
                     if g.group == vg.index and g.weight > 0.001:

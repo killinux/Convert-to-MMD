@@ -110,9 +110,13 @@ class OBJECT_OT_compare_bone_weights(bpy.types.Operator):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class OBJECT_OT_highlight_conflict_vertices(bpy.types.Operator):
-    """高亮同时受冲突骨骼（如 足D + 下半身）影响的顶点，创建顶点组便于 Weight Paint 查看"""
+    """高亮同时受冲突骨骼（如 足D + 下半身）影响的顶点，创建顶点组便于 Weight Paint 查看。
+    注意：腰臀过渡区（足D权重 < 0.6）的自然混合不视为冲突，不被高亮。"""
     bl_idname = "object.highlight_conflict_vertices"
     bl_label = "高亮冲突顶点"
+
+    # 只有 D系骨权重 >= 此阈值才算真冲突（与 _weight_cleanup_leg_torso_conflict 保持一致）
+    D_CONFLICT_THRESHOLD = 0.6
 
     def execute(self, context):
         armature = context.active_object
@@ -124,21 +128,30 @@ class OBJECT_OT_highlight_conflict_vertices(bpy.types.Operator):
         total_conflict = 0
         conflict_pairs_found = set()
 
+        D_SERIES = {"足D.L","足D.R","ひざD.L","ひざD.R","足首D.L","足首D.R","足先EX.L","足先EX.R"}
+
         for obj in mesh_objects:
             old_vg = obj.vertex_groups.get(CONFLICT_VG_NAME)
             if old_vg:
                 obj.vertex_groups.remove(old_vg)
 
             name_to_idx = {vg.name: vg.index for vg in obj.vertex_groups}
+            # 预建 D系骨的 index → name 映射
+            d_idx_map = {name_to_idx[n]: n for n in D_SERIES if n in name_to_idx}
             conflict_indices = []
 
             for v in obj.data.vertices:
-                weighted_groups = {g.group for g in v.groups if g.weight > 0.001}
+                w_map = {g.group: g.weight for g in v.groups if g.weight > 0.001}
+                # 计算该顶点的 D系总权重
+                d_total = sum(w for idx, w in w_map.items() if idx in d_idx_map)
+                # 过渡区（D系 < 阈值）不算冲突，是正常混合
+                if d_total < self.D_CONFLICT_THRESHOLD:
+                    continue
                 for bone_a, bone_b in CONFLICT_PAIRS:
                     idx_a = name_to_idx.get(bone_a)
                     idx_b = name_to_idx.get(bone_b)
                     if idx_a is not None and idx_b is not None:
-                        if idx_a in weighted_groups and idx_b in weighted_groups:
+                        if idx_a in w_map and idx_b in w_map:
                             conflict_indices.append(v.index)
                             conflict_pairs_found.add((bone_a, bone_b))
                             break
@@ -152,12 +165,12 @@ class OBJECT_OT_highlight_conflict_vertices(bpy.types.Operator):
         context.scene.weight_conflict_done = True
 
         if total_conflict == 0:
-            self.report({'INFO'}, "✅ 无冲突顶点，腿部权重干净")
+            self.report({'INFO'}, "✅ 无冲突顶点（腰臀过渡区混合权重属正常）")
         else:
             pairs_str = ", ".join(f"{a}+{b}" for a, b in sorted(conflict_pairs_found)[:3])
             self.report(
                 {'WARNING'},
-                f"发现 {total_conflict} 个冲突顶点 | "
+                f"发现 {total_conflict} 个真冲突顶点（足D≥0.6 且有下半身/腰权重）| "
                 f"切到 Weight Paint 选「{CONFLICT_VG_NAME}」查看 | "
                 f"冲突对: {pairs_str}"
             )
