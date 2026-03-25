@@ -3,6 +3,7 @@ from mathutils import Vector
 from .. import bone_map_and_group
 from .. import bone_utils
 from .. import preset_operator
+from . import weight_monitor
 
 class OBJECT_OT_rename_to_mmd(bpy.types.Operator):
     """将选定的骨骼重命名为 MMD 格式"""
@@ -244,6 +245,7 @@ class OBJECT_OT_complete_missing_bones(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT')
         self._setup_new_bone_weights(context, obj)
 
+        weight_monitor.auto_check_after_step(context, obj, "step_2", "补全缺失骨骼")
         return {'FINISHED'}
 
     def _setup_new_bone_weights(self, context, armature):
@@ -396,73 +398,102 @@ class OBJECT_OT_complete_missing_bones(bpy.types.Operator):
 
 def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
     """
-    在髋部（足D.L/R 权重范围顶端）创建下半身权重渐变过渡区。
+    在髋部（大腿↔腰 边界）强制建立足D与下半身的正确权重分布。
 
-    XPS 原始权重是二值的：足D 在整条大腿上全是 1.0，没有髋部渐变。
-    这导致下半身和足D 的边界是"硬切割"，骨骼运动时出现裂口。
+    目标分布（参考 Purifier Inase 等标准 MMD 模型）：
+      - 大腿主体（膝盖~髋部85%处）：足D ≈ 1.0，下半身 ≈ 0
+      - 渐变区（髋部顶端15%）：足D 从1.0线性降到0，下半身从0升到1.0
+      - 髋关节以上：下半身完全控制
 
-    本函数在 足D.L/R 权重的顶部 transition_height（默认1.5单位）范围内，
-    将足D权重按高度比例逐渐转移给下半身：
-      - 底部（Z = max_Z - transition_height）：不转移，保持纯足D
-      - 顶部（Z = max_Z）：完全转移，足D=0，下半身获得原足D权重
+    策略：基于骨骼位置计算每个顶点的「目标足D权重」，
+    双向调整（足D不足则从下半身补充；足D过多则转回下半身）。
+    当下半身权重不足以补充时，直接给足D追加权重（适配 XPS 二值权重）。
 
     返回修改的顶点数。
     """
-    BLEND_PAIRS = [("足D.L", "下半身"), ("足D.R", "下半身")]
+    BLEND_PAIRS = [
+        ("足D.L", "下半身", "左足"),
+        ("足D.R", "下半身", "右足"),
+    ]
+    # 大腿顶部多少比例作为渐变区（参考模型约10~15%）
+    BLEND_TOP_FRAC = 0.15
     total_modified = 0
 
     for obj in mesh_objects:
         mw = obj.matrix_world
 
-        for d_bone, shimono_bone in BLEND_PAIRS:
-            vg_d = obj.vertex_groups.get(d_bone)
-            vg_s = obj.vertex_groups.get(shimono_bone)
+        for d_bone_name, shimono_name, fk_bone_name in BLEND_PAIRS:
+            vg_d = obj.vertex_groups.get(d_bone_name)
+            vg_s = obj.vertex_groups.get(shimono_name)
             if not vg_d or not vg_s:
                 continue
 
             idx_d = vg_d.index
             idx_s = vg_s.index
 
-            # 找 足D 在世界坐标中的最高 Z
-            z_vals = [(mw @ v.co).z
-                      for v in obj.data.vertices
-                      for g in v.groups
-                      if g.group == idx_d and g.weight > 0.001]
-            if not z_vals:
+            fk_bone = armature.data.bones.get(fk_bone_name)
+            if not fk_bone:
                 continue
-            z_max = max(z_vals)
-            z_blend_start = z_max - transition_height
+
+            hip_z  = (armature.matrix_world @ fk_bone.head_local).z  # 髋关节（高）
+            knee_z = (armature.matrix_world @ fk_bone.tail_local).z  # 膝盖（低）
+            hip_x  = (armature.matrix_world @ fk_bone.head_local).x  # 判断左右
+
+            if abs(hip_z - knee_z) < 0.001:
+                continue
+
+            z_bottom  = min(hip_z, knee_z)
+            z_top     = max(hip_z, knee_z)
+            thigh_len = z_top - z_bottom
 
             for v in obj.data.vertices:
                 vz = (mw @ v.co).z
-                if vz <= z_blend_start:
-                    continue  # 在渐变区以下，不动
-
-                # 找该顶点的 足D 权重
-                wd = 0.0
-                for g in v.groups:
-                    if g.group == idx_d:
-                        wd = g.weight
-                        break
-                if wd <= 0.001:
-                    continue  # 该顶点没有足D权重，跳过
-
-                # 渐变因子 t：底部=0（不转移），顶部=1（全部转移给下半身）
-                t = max(0.0, min(1.0, (vz - z_blend_start) / transition_height))
-                transfer = wd * t
-                if transfer < 0.0005:
+                # 只处理大腿范围内的顶点
+                if vz < z_bottom or vz > z_top:
                     continue
 
-                # 足D 权重减少
-                vg_d.add([v.index], wd - transfer, 'REPLACE')
+                # 左右侧过滤（中线附近不过滤，允许前后顶点）
+                vx = (mw @ v.co).x
+                if hip_x > 0 and vx < -0.05:
+                    continue
+                if hip_x < 0 and vx > 0.05:
+                    continue
 
-                # 下半身 权重增加
-                ws = 0.0
+                # 高度参数 t：0=髋关节顶端，1=膝盖底端
+                t = 1.0 - (vz - z_bottom) / thigh_len
+
+                # 目标足D权重：大腿主体=1.0，顶端渐变区线性降到0
+                if t >= BLEND_TOP_FRAC:
+                    target_dr = 1.0
+                else:
+                    target_dr = t / BLEND_TOP_FRAC  # 0.0 ~ 1.0
+
+                # 读取当前权重
+                wd = ws = 0.0
                 for g in v.groups:
-                    if g.group == idx_s:
-                        ws = g.weight
-                        break
-                vg_s.add([v.index], ws + transfer, 'REPLACE')
+                    if g.group == idx_d: wd = g.weight
+                    if g.group == idx_s: ws = g.weight
+
+                delta = target_dr - wd  # 正=需要增加足D，负=需要减少足D
+
+                if abs(delta) < 0.0005:
+                    continue
+
+                if delta > 0:
+                    # 足D不足：从下半身补充，不够则直接追加（XPS二值权重兼容）
+                    transfer = min(ws, delta)
+                    if transfer >= 0.0005:
+                        vg_s.add([v.index], ws - transfer, 'REPLACE')
+                        vg_d.add([v.index], wd + transfer, 'REPLACE')
+                    elif delta >= 0.0005:
+                        # 下半身权重为0时直接设定足D（XPS模型无pelvis权重场景）
+                        vg_d.add([v.index], target_dr, 'REPLACE')
+                else:
+                    # 足D过多：将多余部分转回下半身
+                    transfer = -delta  # 正数
+                    vg_d.add([v.index], wd - transfer, 'REPLACE')
+                    vg_s.add([v.index], ws + transfer, 'REPLACE')
+
                 total_modified += 1
 
     return total_modified
@@ -835,6 +866,9 @@ class OBJECT_OT_fix_orphan_weights(bpy.types.Operator):
         # 清理D系腿骨与躯干骨的冲突权重（无论本次是否有孤立骨待转移，都执行）
         cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
 
+        # 清理后重建髋部渐变过渡区（cleanup会清除blend zone，需在最后重建）
+        _create_hip_blend_zone(armature, mesh_objects)
+
         # 重置检查状态（权重已变，结果过期）
         context.scene.weight_orphan_check_done = False
         context.scene.weight_orphan_count = 0
@@ -844,6 +878,7 @@ class OBJECT_OT_fix_orphan_weights(bpy.types.Operator):
             self.report({'INFO'}, f"已转移 {len(redirected)} 个孤立骨: {names}  清理冲突顶点: {cleaned}")
         else:
             self.report({'INFO'}, f"✅ 无孤立骨需要处理  清理冲突顶点: {cleaned}")
+        weight_monitor.auto_check_after_step(context, armature, "step_7", "孤立骨修复")
         return {'FINISHED'}
 
 
@@ -924,6 +959,9 @@ class OBJECT_OT_fix_missing_weights(bpy.types.Operator):
         # 缺失权重填充后再次清理D系腿骨与躯干骨冲突，防止bell-curve误扩散
         cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
 
+        # 清理后重建髋部渐变过渡区（cleanup会清除blend zone，需在最后重建）
+        _create_hip_blend_zone(armature, mesh_objects)
+
         # 重置检查状态
         context.scene.weight_missing_check_done = False
         context.scene.weight_missing_count = 0
@@ -938,6 +976,7 @@ class OBJECT_OT_fix_missing_weights(bpy.types.Operator):
         if not parts:
             parts.append("✅ 所有MMD变形骨均有权重，无需操作")
         self.report({'INFO'}, ' | '.join(parts))
+        weight_monitor.auto_check_after_step(context, armature, "step_8", "缺失权重修复")
         return {'FINISHED'}
 
 
@@ -1037,6 +1076,7 @@ class OBJECT_OT_fix_hip_blend_zone(bpy.types.Operator):
                 f"✅ 髋部渐变区已创建（修改 {modified} 个顶点，渐变高度={self.transition_height:.1f}）")
         else:
             self.report({'WARNING'}, "未找到需要渐变的顶点（足D.L/R 或 下半身 不存在）")
+        weight_monitor.auto_check_after_step(context, armature, "hip_fix", "髋部渐变修复")
         return {'FINISHED'}
 
 
@@ -1113,6 +1153,10 @@ class OBJECT_OT_check_fix_missing_weights(bpy.types.Operator):
                    and b.name not in weighted_vgs]
         fixed, unfixed = _weight_execute_missing_fill(armature, mesh_objects, missing, weighted_vgs)
 
+        # 全部权重操作完成后，统一清理冲突再重建髋部渐变区
+        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
+        _create_hip_blend_zone(armature, mesh_objects)
+
         parts = []
         if redirected:
             parts.append(f"[P1] 孤立骨→MMD {len(redirected)}个")
@@ -1123,6 +1167,7 @@ class OBJECT_OT_check_fix_missing_weights(bpy.types.Operator):
         if not parts:
             parts.append("✅ 权重正常")
         self.report({'INFO'}, ' | '.join(parts))
+        weight_monitor.auto_check_after_step(context, armature, "step_11", "一键权重修复")
         return {'FINISHED'}
 
 # ─────────────────────────────────────────────────────────────────────────────
