@@ -549,7 +549,13 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
                     vg_dr.add([v.index], 0.0, 'REPLACE'); total_modified += 1
                 elif vx < -0.02:
                     vg_dl.add([v.index], 0.0, 'REPLACE'); total_modified += 1
-                # |X| ≤ 0.02：真正中线顶点，保留双侧
+                else:
+                    # |X| ≤ 0.02：中线顶点，两侧归一化使总和=1
+                    combined = wl + wr
+                    if combined > 1.01:
+                        vg_dl.add([v.index], wl / combined, 'REPLACE')
+                        vg_dr.add([v.index], wr / combined, 'REPLACE')
+                        total_modified += 1
                 continue
 
             # ── 情况B：只有一侧D骨，检查是否在错误的位置 ──
@@ -561,6 +567,26 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
                 vg_dl.add([v.index], 0.0, 'REPLACE'); total_modified += 1
 
     return total_modified
+
+
+def _normalize_deform_weights(armature, mesh_objects):
+    """将每个顶点的所有变形骨权重归一化，使总和≤1.0。
+    XPS/DAZ 等来源模型的权重叠加常超过1.0，导致过度变形。"""
+    deform_set = {b.name for b in armature.data.bones if b.use_deform}
+    normalized = 0
+    for obj in mesh_objects:
+        vg_idx_map = {vg.index: vg for vg in obj.vertex_groups if vg.name in deform_set}
+        if not vg_idx_map:
+            continue
+        for v in obj.data.vertices:
+            total = sum(g.weight for g in v.groups if g.group in vg_idx_map and g.weight > 0)
+            if total <= 1.001:
+                continue
+            for g in v.groups:
+                if g.group in vg_idx_map and g.weight > 0:
+                    vg_idx_map[g.group].add([v.index], g.weight / total, 'REPLACE')
+            normalized += 1
+    return normalized
 
 
 def _weight_is_orphan(bone_name):
@@ -1132,7 +1158,13 @@ class OBJECT_OT_fix_hip_blend_zone(bpy.types.Operator):
             self.report({'WARNING'}, "未找到绑定网格")
             return {'CANCELLED'}
 
+        # 先清理冲突，再建渐变区（顺序重要：cleanup 在前避免残留 下半身 导致权重和>1）
+        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
         modified = _create_hip_blend_zone(armature, mesh_objects, self.transition_height)
+        # 渐变区建立后再 cleanup 一次，清除 足D主导区里多余的下半身残留
+        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
+        # 最终归一化：XPS权重叠加超过1.0，统一按比例缩减到1.0
+        _normalize_deform_weights(armature, mesh_objects)
         context.scene.hip_blend_check_done = False  # 重置，需重新检查
 
         if modified > 0:
