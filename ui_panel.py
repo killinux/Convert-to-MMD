@@ -5,7 +5,7 @@ import json
 ARM_BEND_THRESHOLD = 3.0  # 与 pose_operator.py 保持一致
 
 from datetime import datetime as _dt
-INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 髋部渐变过渡区)"
+INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 大腿权重渐变区)"
 
 class OBJECT_OT_load_preset(bpy.types.Operator):
     bl_idname = "object.load_preset"
@@ -317,11 +317,29 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                                  text="0d. 转A-Pose ✅", icon='POSE_HLT')
 
             # 步骤1-6：骨骼结构搭建
+            # 解析权重监控状态
+            try:
+                wm_status = json.loads(scene.get("wm_step_status", "{}"))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                wm_status = {}
+
             row = layout.row()
             row.operator("object.rename_to_mmd", text="1. 重命名为MMD")
-            row.operator("object.complete_missing_bones", text="2. 补全缺失骨骼")
+            sub = row.row()
+            sub.operator("object.complete_missing_bones", text="2. 补全缺失骨骼")
+            s2 = wm_status.get("step_2", "")
+            if s2 == "ok":
+                sub.label(text="", icon='CHECKMARK')
+            elif s2 in ("warning", "error"):
+                sub.label(text="", icon='ERROR')
 
-            layout.operator("object.split_spine_shoulder", text="3. 骨骼切分（spine/shoulder）", icon='BONE_DATA')
+            row3 = layout.row(align=True)
+            row3.operator("object.split_spine_shoulder", text="3. 骨骼切分（spine/shoulder）", icon='BONE_DATA')
+            s3 = wm_status.get("step_3", "")
+            if s3 == "ok":
+                row3.label(text="", icon='CHECKMARK')
+            elif s3 in ("warning", "error"):
+                row3.label(text="", icon='ERROR')
 
             row = layout.row()
             row.operator("object.add_mmd_ik", text="4. 添加MMD IK")
@@ -333,11 +351,30 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
 
             # 步骤7/8：权重检查与修复
             weight_box = layout.box()
-            weight_box.label(text="权重检查与修复", icon='WPAINT_HLT')
+            row_hdr = weight_box.row()
+            row_hdr.label(text="权重检查与修复", icon='WPAINT_HLT')
+            row_hdr.operator("object.weight_health_check", text="权重体检", icon='FUND')
+
+            # ── 权重监控状态 ──
+            wm_result = scene.get("wm_last_check_result", "")
+            if wm_result:
+                wm_row = weight_box.row()
+                if wm_result.startswith("✅"):
+                    wm_row.label(text=wm_result, icon='CHECKMARK')
+                else:
+                    wm_row.alert = True
+                    wm_row.label(text=wm_result, icon='ERROR')
+
+            weight_box.separator(factor=0.3)
 
             # ── 7. 孤立骨（非MMD骨有权重） ──
             row = weight_box.row(align=True)
             row.operator("object.check_orphan_weights", text="7. 检查孤立骨", icon='VIEWZOOM')
+            s7 = wm_status.get("step_7", "")
+            if s7 == "ok":
+                row.label(text="", icon='CHECKMARK')
+            elif s7 in ("warning", "error"):
+                row.label(text="", icon='ERROR')
             if scene.weight_orphan_check_done:
                 if scene.weight_orphan_count == 0:
                     weight_box.label(text="✅ 无孤立骨", icon='CHECKMARK')
@@ -356,6 +393,11 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             # ── 8. MMD变形骨缺失权重 ──
             row = weight_box.row(align=True)
             row.operator("object.check_missing_weights", text="8. 检查缺失MMD骨权重", icon='VIEWZOOM')
+            s8 = wm_status.get("step_8", "")
+            if s8 == "ok":
+                row.label(text="", icon='CHECKMARK')
+            elif s8 in ("warning", "error"):
+                row.label(text="", icon='ERROR')
             if scene.weight_missing_check_done:
                 if scene.weight_missing_count == 0:
                     weight_box.label(text="✅ 所有MMD变形骨均有权重", icon='CHECKMARK')
@@ -368,6 +410,27 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
                             weight_box.label(text=f"  {line}", icon='BLANK1')
                     weight_box.operator("object.fix_missing_weights",
                                         text="修复：从祖先分配权重", icon='WPAINT_HLT')
+
+            # ── 7b / 8b：髋部渐变区（步骤7/8修复后自动重建，此处可验证结果） ──
+            weight_box.separator(factor=0.5)
+            hip_row = weight_box.row(align=True)
+            hip_row.label(text="髋部渐变区（腰腿权重过渡）", icon='MOD_SMOOTH')
+            hip_act = weight_box.row(align=True)
+            hip_act.operator("object.check_hip_blend_zone", text="检查渐变区", icon='VIEWZOOM')
+            hip_act.operator("object.fix_hip_blend_zone",   text="修复渐变区", icon='BRUSH_DATA')
+            sh = wm_status.get("hip_fix", "")
+            if sh == "ok":
+                hip_act.label(text="", icon='CHECKMARK')
+            elif sh in ("warning", "error"):
+                hip_act.label(text="", icon='ERROR')
+            if scene.hip_blend_check_done:
+                lb = scene.hip_blend_left_binary;  rb = scene.hip_blend_right_binary
+                lm = scene.hip_blend_left_count;   rm = scene.hip_blend_right_count
+                if lb > 100 or rb > 100:
+                    r = weight_box.row(); r.alert = True
+                    r.label(text=f"⚠️ 硬切割：左={lb} 右={rb}  → 点「修复渐变区」", icon='ERROR')
+                else:
+                    weight_box.label(text=f"✅ 渐变正常  混合顶点：左={lm}  右={rm}", icon='CHECKMARK')
 
             # ── 手动权重转移（可选，任意骨骼名均可） ──
             weight_box.separator(factor=0.5)

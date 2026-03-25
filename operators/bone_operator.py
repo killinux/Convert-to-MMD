@@ -446,18 +446,32 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
             z_top     = max(hip_z, knee_z)
             thigh_len = z_top - z_bottom
 
+            # 对侧D骨的index（用于排除已属于对侧的顶点）
+            opposite_d_name = "足D.R" if d_bone_name == "足D.L" else "足D.L"
+            vg_opp = obj.vertex_groups.get(opposite_d_name)
+            idx_opp = vg_opp.index if vg_opp else -1
+
             for v in obj.data.vertices:
                 vz = (mw @ v.co).z
                 # 只处理大腿范围内的顶点
                 if vz < z_bottom or vz > z_top:
                     continue
 
-                # 左右侧过滤（中线附近不过滤，允许前后顶点）
+                # 左右侧过滤：优先用X坐标判断，严格排除对侧顶点
                 vx = (mw @ v.co).x
-                if hip_x > 0 and vx < -0.05:
+                if hip_x > 0 and vx < -0.02:
                     continue
-                if hip_x < 0 and vx > 0.05:
+                if hip_x < 0 and vx > 0.02:
                     continue
+
+                # 若顶点对侧D骨权重 > 本侧，说明它属于对侧，跳过
+                if idx_opp >= 0:
+                    wd_self = wd_opp = 0.0
+                    for g in v.groups:
+                        if g.group == idx_d:   wd_self = g.weight
+                        if g.group == idx_opp: wd_opp  = g.weight
+                    if wd_opp > wd_self + 0.01:
+                        continue
 
                 # 高度参数 t：0=髋关节顶端，1=膝盖底端
                 t = 1.0 - (vz - z_bottom) / thigh_len
