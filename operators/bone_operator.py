@@ -534,31 +534,31 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
                 if g.group == idx_fl: fl = g.weight
                 if g.group == idx_fr: fr = g.weight
 
-            # 两侧D骨都有权重才需要处理
-            if wl < 0.001 or wr < 0.001:
-                continue
+            if wl < 0.001 and wr < 0.001:
+                continue  # 两侧都没有，跳过
 
             vx = (mw @ v.co).x  # 正X=角色左侧，负X=角色右侧
 
-            # 判断归属优先级：
-            # 1) FK骨权重明显偏向一侧（> 2x）→ 最可靠
-            # 2) X坐标明显偏向一侧（|X| > 0.02）→ 次优
-            # 3) 真正中线顶点（|X| ≤ 0.02 且FK无差异）→ 保留双侧
-            if fl > fr * 2.0:
-                vg_dr.add([v.index], 0.0, 'REPLACE')
-                total_modified += 1
-            elif fr > fl * 2.0:
-                vg_dl.add([v.index], 0.0, 'REPLACE')
-                total_modified += 1
-            elif vx > 0.02:
-                # X坐标在左侧 → 清除右侧D骨
-                vg_dr.add([v.index], 0.0, 'REPLACE')
-                total_modified += 1
-            elif vx < -0.02:
-                # X坐标在右侧 → 清除左侧D骨
-                vg_dl.add([v.index], 0.0, 'REPLACE')
-                total_modified += 1
-            # |X| ≤ 0.02：真正中线顶点，保留双侧自然混合
+            # ── 情况A：两侧D骨同时存在，判断哪侧主导 ──
+            if wl >= 0.001 and wr >= 0.001:
+                if fl > fr * 2.0:
+                    vg_dr.add([v.index], 0.0, 'REPLACE'); total_modified += 1
+                elif fr > fl * 2.0:
+                    vg_dl.add([v.index], 0.0, 'REPLACE'); total_modified += 1
+                elif vx > 0.02:
+                    vg_dr.add([v.index], 0.0, 'REPLACE'); total_modified += 1
+                elif vx < -0.02:
+                    vg_dl.add([v.index], 0.0, 'REPLACE'); total_modified += 1
+                # |X| ≤ 0.02：真正中线顶点，保留双侧
+                continue
+
+            # ── 情况B：只有一侧D骨，检查是否在错误的位置 ──
+            # 左侧顶点（X > 0.02）不应该有足D.R
+            if vx > 0.02 and wr >= 0.001:
+                vg_dr.add([v.index], 0.0, 'REPLACE'); total_modified += 1
+            # 右侧顶点（X < -0.02）不应该有足D.L
+            elif vx < -0.02 and wl >= 0.001:
+                vg_dl.add([v.index], 0.0, 'REPLACE'); total_modified += 1
 
     return total_modified
 
