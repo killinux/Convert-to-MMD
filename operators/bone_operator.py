@@ -510,6 +510,56 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
 
                 total_modified += 1
 
+    # ── 步骤2：清理 足D.L / 足D.R 跨侧污染 ──────────────────────────────
+    # XPS内裆区域的顶点可能同时被左右FK骨权重覆盖，复制到D系骨时带入污染。
+    # 使用FK骨权重（右足/左足）判断顶点归属，清除非主导侧的D骨权重。
+    for obj in mesh_objects:
+        vg_dl  = obj.vertex_groups.get("足D.L")
+        vg_dr  = obj.vertex_groups.get("足D.R")
+        vg_fl  = obj.vertex_groups.get("左足")  # FK参考
+        vg_fr  = obj.vertex_groups.get("右足")
+        if not vg_dl or not vg_dr:
+            continue
+        idx_l = vg_dl.index
+        idx_r = vg_dr.index
+        idx_fl = vg_fl.index if vg_fl else -1
+        idx_fr = vg_fr.index if vg_fr else -1
+
+        mw = obj.matrix_world
+        for v in obj.data.vertices:
+            wl = wr = fl = fr = 0.0
+            for g in v.groups:
+                if g.group == idx_l:  wl = g.weight
+                if g.group == idx_r:  wr = g.weight
+                if g.group == idx_fl: fl = g.weight
+                if g.group == idx_fr: fr = g.weight
+
+            # 两侧D骨都有权重才需要处理
+            if wl < 0.001 or wr < 0.001:
+                continue
+
+            vx = (mw @ v.co).x  # 正X=角色左侧，负X=角色右侧
+
+            # 判断归属优先级：
+            # 1) FK骨权重明显偏向一侧（> 2x）→ 最可靠
+            # 2) X坐标明显偏向一侧（|X| > 0.02）→ 次优
+            # 3) 真正中线顶点（|X| ≤ 0.02 且FK无差异）→ 保留双侧
+            if fl > fr * 2.0:
+                vg_dr.add([v.index], 0.0, 'REPLACE')
+                total_modified += 1
+            elif fr > fl * 2.0:
+                vg_dl.add([v.index], 0.0, 'REPLACE')
+                total_modified += 1
+            elif vx > 0.02:
+                # X坐标在左侧 → 清除右侧D骨
+                vg_dr.add([v.index], 0.0, 'REPLACE')
+                total_modified += 1
+            elif vx < -0.02:
+                # X坐标在右侧 → 清除左侧D骨
+                vg_dl.add([v.index], 0.0, 'REPLACE')
+                total_modified += 1
+            # |X| ≤ 0.02：真正中线顶点，保留双侧自然混合
+
     return total_modified
 
 
