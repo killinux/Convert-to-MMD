@@ -5,7 +5,7 @@ import json
 ARM_BEND_THRESHOLD = 3.0  # 与 pose_operator.py 保持一致
 
 from datetime import datetime as _dt
-INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (fix: 大腿权重渐变区)"
+INSTALL_TIME = _dt.now().strftime("%Y-%m-%d %H:%M") + " (add: 辅助骨权重转移)"
 
 class OBJECT_OT_load_preset(bpy.types.Operator):
     bl_idname = "object.load_preset"
@@ -333,6 +333,9 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             elif s2 in ("warning", "error"):
                 sub.label(text="", icon='ERROR')
 
+            layout.operator("object.disable_xps_helper_bones",
+                            text="2.5 转移腿/腰辅助骨权重并禁用（xtra/pelvis）", icon='BONE_DATA')
+
             row3 = layout.row(align=True)
             row3.operator("object.split_spine_shoulder", text="3. 骨骼切分（spine/shoulder）", icon='BONE_DATA')
             s3 = wm_status.get("step_3", "")
@@ -346,6 +349,8 @@ class OBJECT_PT_skeleton_hierarchy(bpy.types.Panel):
             row.operator("object.create_bone_group", text="5. 创建骨骼集合")
 
             layout.operator("object.add_twist_bones", text="6. 添加扭转骨骼（腕捩/手捩）", icon='CON_ROTLIKE')
+            layout.operator("object.transfer_foretwist_weights",
+                            text="6.5 转移前臂扭转权重并禁用（foretwist）", icon='CON_ROTLIKE')
 
             layout.separator(factor=0.5)
 

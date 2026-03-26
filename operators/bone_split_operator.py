@@ -1,5 +1,6 @@
 import bpy
 from mathutils import Vector
+from . import weight_monitor
 
 
 class OBJECT_OT_split_spine_shoulder(bpy.types.Operator):
@@ -158,6 +159,7 @@ class OBJECT_OT_split_spine_shoulder(bpy.types.Operator):
             f"骨骼切分完成（{split_count} 处）| 权重验证 {status} "
             f"| 切分前={pre_total:.4f} 切分后={post_total:.4f}")
 
+        weight_monitor.auto_check_after_step(context, obj, "step_3", "骨骼切分")
         return {'FINISHED'}
 
     def _collect_weights(self, context, armature_obj, bone_names):

@@ -288,6 +288,9 @@ class OBJECT_OT_complete_missing_bones(bpy.types.Operator):
                         if g.group == src_vg.index and g.weight > 0:
                             dst_vg.add([v.index], g.weight, 'REPLACE')
                             break
+                # 复制完后清零源FK骨权重——避免FK骨和D骨同时变形同一顶点
+                # （PMX导出时会把两者都带走，reimport后各占50%导致变形叠加）
+                src_vg.remove([v.index for v in obj.data.vertices])
 
         # 将常规腿骨设为非变形骨（PMX 中它们只做 IK 控制）
         for bname in leg_ik_only:
@@ -415,8 +418,9 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
         ("足D.L", "下半身", "左足"),
         ("足D.R", "下半身", "右足"),
     ]
-    # 大腿顶部多少比例作为渐变区（参考模型约10~15%）
-    BLEND_TOP_FRAC = 0.15
+    # 大腿顶部多少比例作为渐变区
+    # 参考模型实测：渐变区从顶端延伸约46%的大腿长度（下半身从100%降到0%）
+    BLEND_TOP_FRAC = 0.46
     total_modified = 0
 
     for obj in mesh_objects:
@@ -451,10 +455,14 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
             vg_opp = obj.vertex_groups.get(opposite_d_name)
             idx_opp = vg_opp.index if vg_opp else -1
 
+            # 只处理髋部渐变区（大腿顶端 BLEND_TOP_FRAC 比例），不碰膝盖和大腿中段。
+            # 旧逻辑处理整个大腿并强制 足D=1.0，会覆盖膝盖处已正确的 ひざD 权重。
+            z_blend_threshold = z_top - BLEND_TOP_FRAC * thigh_len  # 渐变区底边
+
             for v in obj.data.vertices:
                 vz = (mw @ v.co).z
-                # 只处理大腿范围内的顶点
-                if vz < z_bottom or vz > z_top:
+                # 只处理髋部渐变区（顶端15%），膝盖和大腿中段完全不动
+                if vz < z_blend_threshold or vz > z_top:
                     continue
 
                 # 左右侧过滤：优先用X坐标判断，严格排除对侧顶点
@@ -473,14 +481,9 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
                     if wd_opp > wd_self + 0.01:
                         continue
 
-                # 高度参数 t：0=髋关节顶端，1=膝盖底端
-                t = 1.0 - (vz - z_bottom) / thigh_len
-
-                # 目标足D权重：大腿主体=1.0，顶端渐变区线性降到0
-                if t >= BLEND_TOP_FRAC:
-                    target_dr = 1.0
-                else:
-                    target_dr = t / BLEND_TOP_FRAC  # 0.0 ~ 1.0
+                # 渐变区内：t=0 在髋顶（足D目标=0），t=1 在渐变底（足D目标=1.0）
+                t = (z_top - vz) / (BLEND_TOP_FRAC * thigh_len)
+                target_dr = t  # 髋顶=0，渐变底=1.0
 
                 # 读取当前权重
                 wd = ws = 0.0
@@ -570,8 +573,10 @@ def _create_hip_blend_zone(armature, mesh_objects, transition_height=1.5):
 
 
 def _normalize_deform_weights(armature, mesh_objects):
-    """将每个顶点的所有变形骨权重归一化，使总和≤1.0。
-    XPS/DAZ 等来源模型的权重叠加常超过1.0，导致过度变形。"""
+    """将每个顶点的所有变形骨权重双向归一化到1.0。
+    XPS/DAZ 等来源模型的权重叠加常超过1.0（过度变形）；
+    cleanup 删除下半身后可能留下 <1.0 的欠权重（变形不足），一并修正。
+    仅处理总权重 > 0.3 的顶点（0~0.3 视为边界/未绑定顶点，不强制归一化）。"""
     deform_set = {b.name for b in armature.data.bones if b.use_deform}
     normalized = 0
     for obj in mesh_objects:
@@ -580,7 +585,7 @@ def _normalize_deform_weights(armature, mesh_objects):
             continue
         for v in obj.data.vertices:
             total = sum(g.weight for g in v.groups if g.group in vg_idx_map and g.weight > 0)
-            if total <= 1.001:
+            if total < 0.3 or abs(total - 1.0) <= 0.001:
                 continue
             for g in v.groups:
                 if g.group in vg_idx_map and g.weight > 0:
@@ -777,11 +782,15 @@ def _weight_execute_orphan_transfer(mesh_objects, orphan_target_map, armature=No
     return redirected
 
 
-def _weight_cleanup_leg_torso_conflict(armature, mesh_objects):
+def _weight_cleanup_leg_torso_conflict(armature, mesh_objects, z_max=None):
     """清理 D系腿骨 与 躯干骨 之间的真实冲突权重。
 
     ⚠️ 只处理 D系骨权重 >= 0.6（明确处于腿部区域）的顶点，
     保留 D系骨权重 < 0.6 的混合过渡区（腰臀部自然渐变，不应清除）。
+
+    z_max：Zone 边界（世界坐标 Z）。若指定，只清理 Z < z_max 的顶点，
+           即只处理 Zone 3（纯腿部），跳过 Zone 2（髋部过渡区）。
+           不传则处理所有顶点（向后兼容，独立按钮用）。
 
     参考模型（Purifier Inase）中，腰臀过渡区有约3000个顶点
     同时具有 下半身 和 足D 权重，这是正常的权重混合，不是冲突。
@@ -792,7 +801,7 @@ def _weight_cleanup_leg_torso_conflict(armature, mesh_objects):
     torso_bones = {"下半身","腰"}
     cleaned = 0
     for obj in mesh_objects:
-        # 收集各VG在obj中的index
+        mw = obj.matrix_world
         d_idx_set = {obj.vertex_groups[vg.name].index
                      for n in d_series if (vg := obj.vertex_groups.get(n))}
         torso_vgs = {n: obj.vertex_groups.get(n) for n in torso_bones}
@@ -800,11 +809,14 @@ def _weight_cleanup_leg_torso_conflict(armature, mesh_objects):
         if not d_idx_set or not torso_vgs:
             continue
         for v in obj.data.vertices:
-            # 计算该顶点的D系总权重
+            # Zone 边界过滤：只清 Zone 3（z_max 以下），跳过 Zone 2 过渡区
+            if z_max is not None:
+                vz = (mw @ v.co).z
+                if vz >= z_max:
+                    continue
             d_total = sum(g.weight for g in v.groups
                           if g.group in d_idx_set and g.weight > 0.001)
             # 只有D系占主导（>= 阈值）才清除躯干骨权重
-            # 腰臀过渡区（D系 < 0.6）保留混合，防止硬切割
             if d_total < D_DOMINANT_THRESHOLD:
                 continue
             for vg in torso_vgs.values():
@@ -814,6 +826,24 @@ def _weight_cleanup_leg_torso_conflict(armature, mesh_objects):
                         cleaned += 1
                         break
     return cleaned
+
+
+def _get_blend_zone_z_max(armature):
+    """计算髋部过渡区（Zone 2）的下边界 Z（世界坐标）。
+    Zone 3 cleanup 只处理此 Z 以下的顶点。"""
+    mw = armature.matrix_world
+    z_maxes = []
+    for fk_name in ("右足", "左足"):
+        b = armature.data.bones.get(fk_name)
+        if not b:
+            continue
+        z_top  = max((mw @ b.head_local).z, (mw @ b.tail_local).z)
+        z_bot  = min((mw @ b.head_local).z, (mw @ b.tail_local).z)
+        thigh_len = z_top - z_bot
+        if thigh_len > 0.001:
+            # 过渡区下边界 = 骨头顶端 - 46% 大腿长
+            z_maxes.append(z_top - 0.46 * thigh_len)
+    return min(z_maxes) if z_maxes else None
 
 
 def _weight_execute_missing_fill(armature, mesh_objects, missing_bones, weighted_vgs):
@@ -882,6 +912,169 @@ def _weight_execute_missing_fill(armature, mesh_objects, missing_bones, weighted
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+def _transfer_helper_weights(mesh_objects, redirect_map):
+    """将辅助骨权重合并到对应 MMD 骨骼，然后清零辅助骨权重。
+
+    redirect_map: {src_bone_name: dst_bone_name}
+    合并策略：dst[v] += src[v]，最后由调用方归一化。
+    返回 (转移顶点数, 转移详情列表)
+    """
+    total_verts = 0
+    details = []
+    for obj in mesh_objects:
+        for src_name, dst_name in redirect_map.items():
+            src_vg = obj.vertex_groups.get(src_name)
+            if not src_vg:
+                continue
+            dst_vg = obj.vertex_groups.get(dst_name)
+            if not dst_vg:
+                dst_vg = obj.vertex_groups.new(name=dst_name)
+            src_idx = src_vg.index
+            dst_idx = dst_vg.index
+            moved = 0
+            for v in obj.data.vertices:
+                sw = dw = 0.0
+                for g in v.groups:
+                    if g.group == src_idx: sw = g.weight
+                    if g.group == dst_idx: dw = g.weight
+                if sw < 0.001:
+                    continue
+                dst_vg.add([v.index], min(1.0, dw + sw), 'REPLACE')
+                src_vg.add([v.index], 0.0, 'REPLACE')
+                moved += 1
+            if moved:
+                details.append(f"{src_name}→{dst_name}({moved}顶点)")
+                total_verts += moved
+    return total_verts, details
+
+
+class OBJECT_OT_disable_xps_helper_bones(bpy.types.Operator):
+    """Step 2.5：将 XPS 腿/腰辅助骨权重合并到对应 MMD 骨骼，然后禁用辅助骨。
+
+    处理范围（腿/腰部分）：
+      unused bip001 xtra02  → 足D.R     （右大腿扭转辅助）
+      unused bip001 xtra04  → 足D.L     （左大腿扭转辅助）
+      unused bip001 pelvis  → 下半身    （骨盆）
+      unused bip001 xtra08  → 下半身    （内裆辅助）
+      unused bip001 xtra08opp → 下半身  （内裆辅助对侧）
+      unused muscle_elbow_l → 左腕      （肘部肌肉）
+      unused muscle_elbow_r → 右腕      （肘部肌肉）
+    前臂扭转骨（foretwist）请在 Step 6 添加腕捩骨后执行「6.5 转移前臂扭转权重」。
+    """
+    bl_idname = "object.disable_xps_helper_bones"
+    bl_label = "Disable XPS Helper Bones (Step 2.5)"
+
+    # 腿/腰/肘辅助骨 → MMD 目标骨
+    REDIRECT = {
+        "unused bip001 xtra02":    "足D.R",
+        "unused bip001 xtra04":    "足D.L",
+        "unused bip001 pelvis":    "下半身",
+        "unused bip001 xtra08":    "下半身",
+        "unused bip001 xtra08opp": "下半身",
+        "unused muscle_elbow_l":   "左腕",
+        "unused muscle_elbow_r":   "右腕",
+    }
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选择骨架对象")
+            return {'CANCELLED'}
+
+        mesh_objects = _weight_get_mesh_objects(context, armature)
+        if not mesh_objects:
+            self.report({'WARNING'}, "未找到绑定网格")
+            return {'CANCELLED'}
+
+        # 1. 转移权重
+        total_verts, details = _transfer_helper_weights(mesh_objects, self.REDIRECT)
+
+        # 2. 归一化（防止合并后超过 1.0）
+        _normalize_deform_weights(armature, mesh_objects)
+
+        # 3. 禁用所有 unused 骨骼（含 foretwist，但 foretwist 权重此时未转移，仅禁用变形）
+        disabled = []
+        for bone in armature.data.bones:
+            if bone.use_deform and "unused" in bone.name.lower():
+                bone.use_deform = False
+                disabled.append(bone.name)
+
+        msg_parts = []
+        if details:
+            msg_parts.append(f"转移：{'; '.join(details)}")
+        if disabled:
+            msg_parts.append(f"禁用 {len(disabled)} 根辅助骨")
+        if msg_parts:
+            self.report({'INFO'}, "✅ " + " | ".join(msg_parts))
+        else:
+            self.report({'INFO'}, "未找到需要处理的 XPS 辅助骨")
+        return {'FINISHED'}
+
+
+class OBJECT_OT_transfer_foretwist_weights(bpy.types.Operator):
+    """Step 6.5：将 XPS 前臂扭转骨权重合并到 MMD 腕捩骨，然后禁用前臂扭转骨。
+
+    需在「Step 6 添加扭转骨（腕捩/手捩）」之后执行，否则腕捩骨不存在。
+      unused bip001 l foretwist  → 左腕捩
+      unused bip001 l foretwist1 → 左腕捩
+      unused bip001 r foretwist  → 右腕捩
+      unused bip001 r foretwist1 → 右腕捩
+      unused bip001 xtra07pp     → 左肩
+      unused bip001 xtra07       → 右肩
+    """
+    bl_idname = "object.transfer_foretwist_weights"
+    bl_label = "Transfer Foretwist Weights (Step 6.5)"
+
+    REDIRECT = {
+        # foretwist = XPS前臂扭转辅助骨 → MMD 手捩（前臂扭转）
+        # 注意：Step 6 创建的骨骼命名为 手捩.L / 手捩.R，不是 左手捩/右手捩
+        "unused bip001 l foretwist":  "手捩.L",
+        "unused bip001 l foretwist1": "手捩.L",
+        "unused bip001 r foretwist":  "手捩.R",
+        "unused bip001 r foretwist1": "手捩.R",
+        "unused bip001 xtra07pp":     "左肩",
+        "unused bip001 xtra07":       "右肩",
+    }
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "请选择骨架对象")
+            return {'CANCELLED'}
+
+        mesh_objects = _weight_get_mesh_objects(context, armature)
+        if not mesh_objects:
+            self.report({'WARNING'}, "未找到绑定网格")
+            return {'CANCELLED'}
+
+        # 检查手捩骨是否已创建（Step 6 生成的命名为 手捩.L / 手捩.R）
+        if not armature.data.bones.get("手捩.L") and not armature.data.bones.get("手捩.R"):
+            self.report({'WARNING'}, "未找到手捩骨（手捩.L/R），请先执行 Step 6「添加扭转骨骼」")
+            return {'CANCELLED'}
+
+        total_verts, details = _transfer_helper_weights(mesh_objects, self.REDIRECT)
+        _normalize_deform_weights(armature, mesh_objects)
+
+        # 禁用前臂扭转骨
+        disabled = []
+        for src_name in self.REDIRECT:
+            bone = armature.data.bones.get(src_name)
+            if bone and bone.use_deform:
+                bone.use_deform = False
+                disabled.append(src_name)
+
+        msg_parts = []
+        if details:
+            msg_parts.append(f"转移：{'; '.join(details)}")
+        if disabled:
+            msg_parts.append(f"禁用 {len(disabled)} 根前臂辅助骨")
+        if msg_parts:
+            self.report({'INFO'}, "✅ " + " | ".join(msg_parts))
+        else:
+            self.report({'INFO'}, "未找到需要处理的前臂扭转骨")
+        return {'FINISHED'}
+
+
 # Phase 1 — 孤立骨：检查
 # ─────────────────────────────────────────────────────────────────────────────
 class OBJECT_OT_check_orphan_weights(bpy.types.Operator):
@@ -953,11 +1146,9 @@ class OBJECT_OT_fix_orphan_weights(bpy.types.Operator):
         targets = _weight_compute_orphan_targets(armature, mesh_objects, orphan_bones, valid_bones)
         redirected = _weight_execute_orphan_transfer(mesh_objects, targets, armature)
 
-        # 清理D系腿骨与躯干骨的冲突权重（无论本次是否有孤立骨待转移，都执行）
-        cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
-
-        # 清理后重建髋部渐变过渡区（cleanup会清除blend zone，需在最后重建）
-        _create_hip_blend_zone(armature, mesh_objects)
+        # 清理 Zone 3（纯腿部）的冲突权重，跳过 Zone 2 髋部过渡区
+        z_max = _get_blend_zone_z_max(armature)
+        cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects, z_max=z_max)
 
         # 重置检查状态（权重已变，结果过期）
         context.scene.weight_orphan_check_done = False
@@ -1046,11 +1237,9 @@ class OBJECT_OT_fix_missing_weights(bpy.types.Operator):
 
         fixed, unfixed = _weight_execute_missing_fill(armature, mesh_objects, missing, weighted_vgs)
 
-        # 缺失权重填充后再次清理D系腿骨与躯干骨冲突，防止bell-curve误扩散
-        cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
-
-        # 清理后重建髋部渐变过渡区（cleanup会清除blend zone，需在最后重建）
-        _create_hip_blend_zone(armature, mesh_objects)
+        # 清理 Zone 3（纯腿部）的冲突权重，跳过 Zone 2 髋部过渡区
+        z_max = _get_blend_zone_z_max(armature)
+        cleaned = _weight_cleanup_leg_torso_conflict(armature, mesh_objects, z_max=z_max)
 
         # 重置检查状态
         context.scene.weight_missing_check_done = False
@@ -1158,13 +1347,9 @@ class OBJECT_OT_fix_hip_blend_zone(bpy.types.Operator):
             self.report({'WARNING'}, "未找到绑定网格")
             return {'CANCELLED'}
 
-        # 先清理冲突，再建渐变区（顺序重要：cleanup 在前避免残留 下半身 导致权重和>1）
-        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
+        # 直接建立渐变区，不做 cleanup
+        # cleanup 会把 足D>=0.6 的顶点的下半身清零，破坏渐变区中间段（足D=0.6~1.0 区域有意保留下半身）
         modified = _create_hip_blend_zone(armature, mesh_objects, self.transition_height)
-        # 渐变区建立后再 cleanup 一次，清除 足D主导区里多余的下半身残留
-        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
-        # 最终归一化：XPS权重叠加超过1.0，统一按比例缩减到1.0
-        _normalize_deform_weights(armature, mesh_objects)
         context.scene.hip_blend_check_done = False  # 重置，需重新检查
 
         if modified > 0:
@@ -1249,9 +1434,9 @@ class OBJECT_OT_check_fix_missing_weights(bpy.types.Operator):
                    and b.name not in weighted_vgs]
         fixed, unfixed = _weight_execute_missing_fill(armature, mesh_objects, missing, weighted_vgs)
 
-        # 全部权重操作完成后，统一清理冲突再重建髋部渐变区
-        _weight_cleanup_leg_torso_conflict(armature, mesh_objects)
-        _create_hip_blend_zone(armature, mesh_objects)
+        # 清理 Zone 3（纯腿部）的冲突权重，跳过 Zone 2 髋部过渡区
+        z_max = _get_blend_zone_z_max(armature)
+        _weight_cleanup_leg_torso_conflict(armature, mesh_objects, z_max=z_max)
 
         parts = []
         if redirected:

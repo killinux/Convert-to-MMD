@@ -25,6 +25,7 @@ from .operators import weight_verify_operator
 from .operators import mesh_operator
 from .operators import material_operator
 from .operators import auto_convert_operator
+from .operators import weight_monitor
 from . import ui_panel
 from . import bone_map_and_group
 from . import bone_utils
@@ -46,6 +47,8 @@ def register():
     bpy.utils.register_class(ui_panel.OBJECT_OT_load_preset)
     bpy.utils.register_class(bone_operator.OBJECT_OT_rename_to_mmd)
     bpy.utils.register_class(bone_operator.OBJECT_OT_complete_missing_bones)
+    bpy.utils.register_class(bone_operator.OBJECT_OT_disable_xps_helper_bones)
+    bpy.utils.register_class(bone_operator.OBJECT_OT_transfer_foretwist_weights)
     bpy.utils.register_class(bone_operator.OBJECT_OT_check_orphan_weights)
     bpy.utils.register_class(bone_operator.OBJECT_OT_fix_orphan_weights)
     bpy.utils.register_class(bone_operator.OBJECT_OT_check_missing_weights)
@@ -81,6 +84,8 @@ def register():
     bpy.utils.register_class(mesh_operator.OBJECT_OT_merge_meshes)
     bpy.utils.register_class(material_operator.OBJECT_OT_convert_materials_to_mmd)
     bpy.utils.register_class(auto_convert_operator.OBJECT_OT_auto_convert)
+    bpy.utils.register_class(weight_monitor.OBJECT_OT_weight_health_check)
+    bpy.utils.register_class(weight_monitor.OBJECT_OT_weight_clear_monitor)
     # 注册动态属性
     bones = preset_operator.get_bones_list()
     register_properties(bones)
@@ -146,6 +151,9 @@ def register():
     bpy.types.Scene.hip_blend_right_count  = bpy.props.IntProperty(default=0)
     bpy.types.Scene.hip_blend_left_binary  = bpy.props.IntProperty(default=0)
     bpy.types.Scene.hip_blend_right_binary = bpy.props.IntProperty(default=0)
+    # 权重健康监控
+    bpy.types.Scene.wm_step_status = bpy.props.StringProperty(default="{}")
+    bpy.types.Scene.wm_last_check_result = bpy.props.StringProperty(default="")
 
 def unregister():
     # 注销所有类
@@ -153,6 +161,8 @@ def unregister():
     bpy.utils.unregister_class(ui_panel.OBJECT_OT_load_preset)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_rename_to_mmd)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_complete_missing_bones)
+    bpy.utils.unregister_class(bone_operator.OBJECT_OT_disable_xps_helper_bones)
+    bpy.utils.unregister_class(bone_operator.OBJECT_OT_transfer_foretwist_weights)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_check_orphan_weights)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_fix_orphan_weights)
     bpy.utils.unregister_class(bone_operator.OBJECT_OT_check_missing_weights)
@@ -188,6 +198,8 @@ def unregister():
     bpy.utils.unregister_class(mesh_operator.OBJECT_OT_merge_meshes)
     bpy.utils.unregister_class(material_operator.OBJECT_OT_convert_materials_to_mmd)
     bpy.utils.unregister_class(auto_convert_operator.OBJECT_OT_auto_convert)
+    bpy.utils.unregister_class(weight_monitor.OBJECT_OT_weight_health_check)
+    bpy.utils.unregister_class(weight_monitor.OBJECT_OT_weight_clear_monitor)
     del bpy.types.Scene.my_enum
     for prop in ["weight_verify_done", "weight_verify_bones_without_vg", "weight_verify_orphan_vgs",
                  "weight_verify_orphan_names", "weight_verify_total_verts",
@@ -200,6 +212,7 @@ def unregister():
                  "weight_missing_check_done", "weight_missing_count", "weight_missing_names",
                  "hip_blend_check_done", "hip_blend_left_count", "hip_blend_right_count",
                  "hip_blend_left_binary", "hip_blend_right_binary",
+                 "wm_step_status", "wm_last_check_result",
                  "arm_check_done", "arm_check_has_problem",
                  "arm_check_left_bend", "arm_check_right_bend",
                  "arm_check_left_wrist", "arm_check_right_wrist"]:
