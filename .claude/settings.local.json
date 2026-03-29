@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"E:\\\\mywork\\\\Convert-to-MMD/operators\"/*.py \"E:\\\\mywork\\\\Convert-to-MMD\"/*.py)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -rn \"0.944\\\\|apply_scale\" /e/mywork/Convert-to-MMD/ --include=*.py)",
+      "Bash(python \"/c/Users/haoni/compare_model_scale.py\")",
+      "Bash(robocopy \"E:\\\\mywork\\\\Convert-to-MMD\\\\xps_to_pmx\" \"C:\\\\Users\\\\haoni\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\3.6\\\\scripts\\\\addons\\\\xps_to_pmx\" /E /PURGE /XD __pycache__)",
+      "Bash(sync.bat)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \"Sync-ToBlender.ps1\")",
+      "Bash(python3:*)",
+      "Bash(cmd /c sync.bat)",
+      "Bash(cmd /c 'rmdir /s /q \"\"C:\\\\Users\\\\haoni\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\3.6\\\\scripts\\\\addons\\\\xps_to_pmx\"\" 2>nul & timeout /t 1 /nobreak >nul & xcopy \"\"E:\\\\mywork\\\\Convert-to-MMD\\\\xps_to_pmx\"\" \"\"C:\\\\Users\\\\haoni\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\3.6\\\\scripts\\\\addons\\\\xps_to_pmx\"\" /E /I /Y >nul & echo 同步完成')",
+      "Bash(sync-full.bat)",
+      "Bash(python \"E:/mywork/Convert-to-MMD/sync.py\")",
+      "Bash(python -m py_compile \"E:/mywork/Convert-to-MMD/xps_to_pmx/mmd_bone_tree_ui.py\")",
+      "Bash(python fix_preset_schema.py)",
+      "Bash(pwsh -File Sync-ToBlender.ps1)",
+      "Bash(python -c \":*)",
+      "Bash(find 'C:\\\\Users\\\\haoni\\\\AppData\\\\Roaming\\\\Blender Foundation' -name *.log -o -name debug.txt)",
+      "Bash(python -m py_compile \"E:\\\\mywork\\\\Convert-to-MMD\\\\xps_to_pmx\\\\mmd_bone_tree_ui.py\")",
+      "Bash(python:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"Sync-ToBlender.ps1\")",
+      "WebSearch",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(__NEW_LINE_425259f492eed588__ TARGET=\"C:/Users/haoni/AppData/Roaming/Blender Foundation/Blender/3.6/scripts/addons/xps_to_pmx/mmd_bone_tree_ui.py\" __NEW_LINE_425259f492eed588__ echo \"检查所有 emboss=False 的出现:\" grep -n \"emboss=False\" \"$TARGET\")",
+      "Bash(find . -name \"*.pyc\" -delete)",
+      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)",
+      "Bash(ls -la *.bat *.ps1)",
+      "Bash(curl -s http://localhost:9876/)",
+      "Bash(curl -s http://localhost:9876/api/status)",
+      "mcp__blender__get_object_info",
+      "Bash(find 'C:\\\\Users\\\\haoni\\\\AppData\\\\Roaming\\\\Blender Foundation\\\\Blender\\\\3.6\\\\scripts\\\\addons\\\\xps_to_pmx' -name *.json -o -name preset*)",
+      "Bash(nc -zv localhost 9876)",
+      "Bash(curl -s http://localhost:9876 -m)",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

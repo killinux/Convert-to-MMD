@@ -151,9 +151,10 @@ class XPSPMX_OT_stage_1_rebuild_skeleton(Operator):
         eb = armature.data.edit_bones
         created_count = 0
 
-        # Sort bones by creation order (parents before children)
-        # We'll do a simple approach: create in order, handle missing parents
-        for bone_name in sorted(missing_bones):
+        # Use topological sort to ensure parents are created before children
+        creation_order = self._topological_sort_bones(missing_bones, mmd_skeleton, eb)
+
+        for bone_name in creation_order:
             if bone_name in eb:
                 continue  # Already exists
 
@@ -164,7 +165,7 @@ class XPSPMX_OT_stage_1_rebuild_skeleton(Operator):
                 # Create bone
                 new_bone = eb.new(bone_name)
 
-                # Set parent if it exists
+                # Set parent if it exists (should exist due to topological sort)
                 if parent_name and parent_name in eb:
                     new_bone.parent = eb[parent_name]
 
@@ -192,6 +193,54 @@ class XPSPMX_OT_stage_1_rebuild_skeleton(Operator):
                 print(f"   ⚠ 失败: {bone_name} - {str(e)}")
 
         return created_count
+
+    def _topological_sort_bones(self, missing_bones: Set[str],
+                               mmd_skeleton: Dict,
+                               edit_bones) -> List[str]:
+        """Sort bones topologically so parents are created before children.
+
+        Args:
+            missing_bones: Set of bones to create
+            mmd_skeleton: MMD standard skeleton definition
+            edit_bones: Blender edit bones collection
+
+        Returns:
+            Sorted list of bone names (parents first)
+        """
+        # Build dependency graph
+        result = []
+        visited = set()
+        temp_visited = set()
+
+        def visit(bone_name):
+            if bone_name in visited:
+                return
+            if bone_name in temp_visited:
+                return  # Avoid cycles
+
+            temp_visited.add(bone_name)
+
+            # First, visit parent if it needs to be created
+            if bone_name in missing_bones:
+                bone_def = mmd_skeleton.get(bone_name, {})
+                parent_name = bone_def.get('parent_mmd')
+
+                # If parent is missing and needs to be created, visit it first
+                if parent_name and parent_name in missing_bones and parent_name not in visited:
+                    visit(parent_name)
+
+            temp_visited.discard(bone_name)
+            visited.add(bone_name)
+
+            if bone_name in missing_bones:
+                result.append(bone_name)
+
+        # Visit all missing bones
+        for bone_name in missing_bones:
+            if bone_name not in visited:
+                visit(bone_name)
+
+        return result
 
     def _adjust_bone_properties(self, armature, mmd_skeleton: Dict) -> int:
         """Adjust bone properties (use_deform, etc.) based on MMD standard.

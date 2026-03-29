@@ -276,6 +276,7 @@ class MappingConfiguration:
     bone_groups: Dict[str, List[str]] = field(default_factory=dict)
     validation_status: Dict[str, Any] = field(default_factory=dict)
     mmd_skeleton: Optional[Dict[str, MMDBone]] = None  # Reference to MMD standard bones
+    missing_mmd_bones: Dict[str, Any] = field(default_factory=dict)  # Missing MMD bones detected by bone detection
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -302,6 +303,7 @@ class MappingConfiguration:
             'ik_chains': self.ik_chains,
             'bone_groups': self.bone_groups,
             'validation_status': self.validation_status,
+            'missing_mmd_bones': self.missing_mmd_bones,
         }
 
     @classmethod

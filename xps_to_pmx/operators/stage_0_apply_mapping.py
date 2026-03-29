@@ -138,10 +138,9 @@ class XPSPMX_OT_stage_0_apply_mapping(Operator):
                 continue
 
             mesh_count += 1
-            mesh = obj.data
 
             # Rename vertex groups
-            for vgroup in mesh.vertex_groups:
+            for vgroup in obj.vertex_groups:
                 if vgroup.name in rename_map:
                     new_name = rename_map[vgroup.name]
                     try:

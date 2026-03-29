@@ -453,3 +453,109 @@ def validate_parent_relationships(config: data_structures.MappingConfiguration) 
         results[xps_name] = result
 
     return results
+
+
+def detect_missing_mmd_bones(armature) -> Dict[str, dict]:
+    """Detect which MMD standard bones are missing from the current armature.
+
+    Loads the MMD standard skeleton (49 bones) and checks which ones are missing
+    from the current XPS skeleton.
+
+    Args:
+        armature: Blender armature object
+
+    Returns:
+        Dictionary mapping MMD bone name -> {
+            'is_missing': bool,
+            'parent_mmd': str or None,
+            'bone_type': str,
+            'notes': str
+        }
+    """
+    if not armature or armature.type != 'ARMATURE':
+        return {}
+
+    # Load MMD standard skeleton
+    try:
+        import json
+        import os
+        preset_path = os.path.join(os.path.dirname(__file__), 'presets', 'mmd_standard_skeleton.json')
+        with open(preset_path, 'r', encoding='utf-8') as f:
+            mmd_std = json.load(f)
+    except Exception as e:
+        print(f"Error loading MMD standard skeleton: {e}")
+        return {}
+
+    # Get current armature bone names
+    current_bones = {b.name for b in armature.data.bones}
+
+    # Check each MMD standard bone
+    results = {}
+    for bone_name, bone_def in mmd_std.get('bones', {}).items():
+        is_missing = bone_name not in current_bones
+        results[bone_name] = {
+            'is_missing': is_missing,
+            'parent_mmd': bone_def.get('parent_mmd'),
+            'bone_type': bone_def.get('bone_type', 'unknown'),
+            'notes': bone_def.get('notes', ''),
+            'mmd_name': bone_def.get('mmd_name', bone_name),
+            'is_deform': bone_def.get('is_deform', True)
+        }
+
+    return results
+
+
+def build_missing_bones_summary(armature) -> Dict[str, any]:
+    """Build a summary of missing MMD bones grouped by type and hierarchy.
+
+    Args:
+        armature: Blender armature object
+
+    Returns:
+        Dictionary with:
+        - total_mmd_bones: int (should be 49)
+        - total_missing: int
+        - missing_by_type: {bone_type: [bone_names]}
+        - missing_critical: [critical bone names for skeleton reconstruction]
+        - missing_details: {bone_name: {is_missing, parent_mmd, ...}}
+    """
+    missing_details = detect_missing_mmd_bones(armature)
+
+    if not missing_details:
+        return {
+            'total_mmd_bones': 0,
+            'total_missing': 0,
+            'missing_by_type': {},
+            'missing_critical': [],
+            'missing_details': {}
+        }
+
+    # Group by type and identify critical bones
+    missing_by_type = {}
+    missing_critical = []
+    total_missing = 0
+
+    critical_bones = {
+        'センター', 'グルーブ', '腰', '下半身', '上半身',
+        '上半身1', '上半身2', '首', '首1', '頭'
+    }
+
+    for bone_name, details in missing_details.items():
+        if details['is_missing']:
+            total_missing += 1
+
+            bone_type = details['bone_type']
+            if bone_type not in missing_by_type:
+                missing_by_type[bone_type] = []
+            missing_by_type[bone_type].append(bone_name)
+
+            if bone_name in critical_bones:
+                missing_critical.append(bone_name)
+
+    return {
+        'total_mmd_bones': len(missing_details),
+        'total_missing': total_missing,
+        'missing_by_type': missing_by_type,
+        'missing_critical': missing_critical,
+        'missing_details': missing_details
+    }

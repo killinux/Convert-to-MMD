@@ -18,7 +18,7 @@ bl_info = {
     "description": "Convert XPS rigs to MMD format quickly with flexible mapping system",
     "category": "Import-Export",
     # 更新时间戳 - 用于检查插件版本
-    "last_updated": "2026-03-29 18:45:00",
+    "last_updated": "2026-03-29 20:30:00",
     # 版本历史
     "wiki_url": "",
     "tracker_url": "",

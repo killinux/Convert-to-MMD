@@ -335,6 +335,110 @@ class XPSPMX_PT_mapping_editor(Panel):
                     row.label(text="(root)")
 
 
+class XPSPMX_PT_bone_detection(Panel):
+    """Panel: Detect missing MMD standard bones.
+
+    Shows which of the 49 MMD standard bones are missing from the current
+    XPS model. Allows user to confirm which ones should be created.
+    """
+    bl_label = "🔍 BONE DETECTION"
+    bl_idname = "XPSPMX_PT_bone_detection"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "XPS to PMX Mapper"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        armature = context.active_object
+
+        # Check if we have an armature selected
+        if not armature or armature.type != 'ARMATURE':
+            layout.label(text="Please select an armature", icon='ERROR')
+            return
+
+        # Detect missing bones
+        from . import mapping
+        summary = mapping.detection.build_missing_bones_summary(armature)
+
+        if not summary:
+            layout.label(text="Error detecting bones", icon='ERROR')
+            return
+
+        # Show summary
+        total_missing = summary['total_missing']
+        total_mmd = summary['total_mmd_bones']
+        missing_critical = summary['missing_critical']
+
+        layout.label(text=f"MMD Standard Bones: {total_mmd - total_missing}/{total_mmd}", icon='BONE_DATA')
+        layout.label(text=f"Missing: {total_missing} bones", icon='ERROR' if total_missing > 0 else 'CHECKMARK')
+
+        if missing_critical:
+            layout.label(text=f"Critical Missing: {len(missing_critical)}", icon='ALERT')
+            row = layout.row()
+            row.label(text="⚠️ These bones are needed for proper reconstruction:")
+            for bone_name in missing_critical[:5]:
+                row = layout.row()
+                row.label(text=f"  • {bone_name}", icon='BONE_DATA')
+            if len(missing_critical) > 5:
+                row = layout.row()
+                row.label(text=f"  ... and {len(missing_critical) - 5} more")
+
+        # Show missing bones by category
+        layout.separator()
+        layout.label(text="Missing by Category:")
+
+        missing_by_type = summary['missing_by_type']
+        for bone_type, bones in sorted(missing_by_type.items()):
+            box = layout.box()
+            row = box.row()
+            row.label(text=f"{bone_type.upper()} ({len(bones)})", icon='TRIA_DOWN')
+
+            for bone_name in bones:
+                detail = summary['missing_details'].get(bone_name, {})
+                row = box.row()
+                row.label(text=f"  • {bone_name}", icon='BONE_DATA')
+                if detail.get('parent_mmd'):
+                    row.label(text=f"(parent: {detail['parent_mmd']})", icon='NONE')
+
+        # Confirmation button
+        layout.separator()
+        layout.operator("xpspmx_mapper.confirm_missing_bones",
+                       text=f"Confirm & Create Missing Bones ({total_missing})",
+                       icon='CHECKMARK')
+
+
+class XPSPMX_OT_confirm_missing_bones(Operator):
+    """Confirm detection and prepare to create missing bones in Stage 1."""
+    bl_idname = "xpspmx_mapper.confirm_missing_bones"
+    bl_label = "Confirm Missing Bones"
+
+    def execute(self, context):
+        armature = context.active_object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "Please select an armature")
+            return {'CANCELLED'}
+
+        from . import mapping
+
+        # Detect missing bones
+        missing_details = mapping.detection.detect_missing_mmd_bones(armature)
+        missing_bones = {name: details for name, details in missing_details.items() if details['is_missing']}
+
+        # Store in global config for Stage 1
+        if _GLOBAL_CONFIG['config'] is None:
+            self.report({'ERROR'}, "No mapping configuration. Run Auto Map Bones first.")
+            return {'CANCELLED'}
+
+        config = _GLOBAL_CONFIG['config']
+        config.missing_mmd_bones = missing_bones
+
+        total_missing = len(missing_bones)
+        self.report({'INFO'}, f"Confirmed: {total_missing} bones will be created in Stage 1")
+
+        return {'FINISHED'}
+
+
 class XPSPMX_PT_weight_rules(Panel):
     """Panel 3: Weight transfer rules configuration."""
     bl_label = "③ WEIGHT RULES"
@@ -490,12 +594,14 @@ classes = [
     XPSPMX_OT_auto_map_bones,
     XPSPMX_OT_save_mapping_config,
     XPSPMX_OT_load_mapping_config,
+    XPSPMX_OT_confirm_missing_bones,
     XPSPMX_OT_validate_config,
     XPSPMX_OT_start_conversion,
     XPSPMX_OT_add_fk_to_d_rule,
     XPSPMX_OT_add_twist_rule,
     XPSPMX_OT_add_hip_blend_rule,
     XPSPMX_PT_auto_detection,
+    XPSPMX_PT_bone_detection,
     XPSPMX_PT_mapping_editor,
     XPSPMX_PT_weight_rules,
     XPSPMX_PT_validation_preview,
