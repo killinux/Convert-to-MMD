@@ -85,16 +85,13 @@ def stage_apply_bone_mapping(armature, config: data_structures.MappingConfigurat
             bpy.ops.object.mode_set(mode='OBJECT')
 
 
-def stage_apply_weight_rules(armature, config: data_structures.MappingConfiguration) \
+def stage_apply_weight_rules(armature, config: data_structures.MappingConfiguration = None) \
         -> Tuple[bool, str]:
-    """Stage 3: Apply weight transfer rules.
-
-    Executes all weight rules in order from the configuration.
-    This is transparent and auditable - each rule logs what it does.
+    """Stage 3: Apply weight transfer rules via operator.
 
     Args:
         armature: Target armature object
-        config: MappingConfiguration with weight rules
+        config: MappingConfiguration with weight rules (optional)
 
     Returns:
         (success, message)
@@ -103,38 +100,13 @@ def stage_apply_weight_rules(armature, config: data_structures.MappingConfigurat
         return False, "Invalid armature"
 
     try:
-        # Collect all mesh objects to process
-        mesh_objects = [
-            obj for obj in bpy.context.scene.objects
-            if obj.type == 'MESH' and obj.vertex_groups
-        ]
-
-        if not mesh_objects:
-            return False, "No mesh objects found"
-
-        # Apply all weight rules
-        if not config.weight_rules:
-            return True, "No weight rules to apply"
-
-        results = weights.apply_all_weight_rules(armature, mesh_objects, config.weight_rules)
-
-        # Build message
-        applied = len(results['applied_rules'])
-        failed = len(results['failed_rules'])
-        message = f"Applied {applied} weight rules"
-        if failed > 0:
-            message += f" ({failed} failed)"
-
-        # Log details
-        for log_line in results['logs'][:5]:
-            print(f"  {log_line}")
-        if len(results['logs']) > 5:
-            print(f"  ... and {len(results['logs']) - 5} more entries")
-
-        return failed == 0, message
+        # Call the Stage 3 operator
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.xpspmx_pipeline.stage_3_apply_weight_rules()
+        return True, "权重规则应用完成"
 
     except Exception as e:
-        return False, f"Error during weight rule application: {e}"
+        return False, f"权重规则应用失败: {str(e)}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
