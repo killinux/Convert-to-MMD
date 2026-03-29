@@ -235,22 +235,9 @@ def stage_pose_to_apose(armature, context):
     - 烘焙姿态到rest pose
     """
     try:
-        # 进入Pose模式
-        bpy.ops.object.mode_set(mode='POSE')
-
-        # 获取手臂骨骼
-        left_arm = armature.pose.bones.get("左腕")
-        right_arm = armature.pose.bones.get("右腕")
-
-        if not left_arm or not right_arm:
-            return False, "找不到手臂骨骼"
-
-        # 设置旋转
-        left_arm.rotation_euler = (0, 0.6458, 0)  # ~37度
-        right_arm.rotation_euler = (0, -0.6458, 0)
-
-        # 烘焙到rest pose
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # Call the Stage 2 operator
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.xpspmx_pipeline.stage_2_apply_apose()
         return True, "A-Pose转换完成"
 
     except Exception as e:

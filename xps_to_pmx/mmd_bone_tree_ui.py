@@ -764,6 +764,10 @@ class XPSPMX_PT_mmd_bone_tree(Panel):
         row.scale_y = 1.3
         row.operator("xpspmx_pipeline.stage_1_rebuild_skeleton", text="🛠 Stage 1: 重建骨架")
 
+        row = convert_box.row(align=True)
+        row.scale_y = 1.3
+        row.operator("xpspmx_pipeline.stage_2_apply_apose", text="🧍 Stage 2: 应用 A-Pose")
+
         convert_box.label(text="⏳ 后续步骤（开发中...）", icon='INFO')
 
     def _draw_complete_tree(self, layout, mmd_skeleton: Dict, config, search_term: str, props):
