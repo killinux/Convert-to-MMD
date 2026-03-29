@@ -255,14 +255,9 @@ def stage_setup_additional_transform(armature, context):
     - 添加IK约束
     """
     try:
-        bpy.ops.object.mode_set(mode='POSE')
-
-        # 设置付与关系
-        _setup_d_bone_followers(armature)
-        _setup_waist_cancel(armature)
-        _setup_ik_constraints(armature)
-
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # Call the Stage 4 operator
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.xpspmx_pipeline.stage_4_setup_constraints()
         return True, "付与和IK约束设置完成"
 
     except Exception as e:
@@ -287,61 +282,5 @@ def stage_export_pmx(armature, context, output_path):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 辅助函数
+# Note: Helper functions moved to Stage 4 operator
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _setup_d_bone_followers(armature):
-    """设置D骨的付与关系"""
-    for d_name, fk_name, influence in mapping.D_BONE_FK_PAIRS:
-        d_pb = armature.pose.bones.get(d_name)
-        if not d_pb:
-            continue
-        try:
-            from mmd_tools.core.bone import FnBone
-            mb = d_pb.mmd_bone
-            mb.additional_transform_bone = fk_name
-            mb.has_additional_rotation = True
-            mb.additional_transform_influence = influence
-        except ImportError:
-            pass  # mmd_tools未启用
-
-
-def _setup_waist_cancel(armature):
-    """设置腰取消骨的付与关系"""
-    for cancel_name, waist_name, influence in mapping.WAIST_CANCEL_PAIRS:
-        cancel_pb = armature.pose.bones.get(cancel_name)
-        if not cancel_pb:
-            continue
-        try:
-            from mmd_tools.core.bone import FnBone
-            mb = cancel_pb.mmd_bone
-            mb.additional_transform_bone = waist_name
-            mb.has_additional_rotation = True
-            mb.additional_transform_influence = influence
-        except ImportError:
-            pass
-
-
-def _setup_ik_constraints(armature):
-    """添加IK约束"""
-    for chain_cfg in mapping.IK_CHAINS:
-        target_name = chain_cfg["target"]
-        chain_bones = chain_cfg["chain_bones"]
-
-        if not chain_bones:
-            continue
-
-        # 最后一个骨骼添加IK约束
-        last_bone_name = chain_bones[-1]
-        last_pb = armature.pose.bones.get(last_bone_name)
-        target_pb = armature.pose.bones.get(target_name)
-
-        if not last_pb or not target_pb:
-            continue
-
-        # 添加IK约束
-        ik = last_pb.constraints.new(type='IK')
-        ik.target = armature
-        ik.subtarget = target_name
-        ik.chain_count = chain_cfg["chain_length"]
-        ik.use_stretch = False
