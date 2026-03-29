@@ -1,7 +1,8 @@
 {
-  "name": "XPS Standard Format",
-  "version": "1.0",
+  "name": "XPS Standard Format - Complete",
+  "version": "2.0",
   "source_skeleton_type": "xps_standard",
+  "description": "Complete mapping for XPS standard skeleton including arms, legs, hands, feet, and special bones",
   "bone_mappings": {
     "root hips": {
       "xps_name": "root hips",
@@ -9,14 +10,12 @@
       "confidence": 1.0,
       "parent_xps": null,
       "parent_mmd": "全ての親",
-      "bone_type": "spine",
+      "bone_type": "center",
       "is_deform": false,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Root center bone",
       "parent_mmd_expected": "全ての親",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "pelvis": {
@@ -27,12 +26,10 @@
       "parent_mmd": "腰",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Lower body base",
       "parent_mmd_expected": "腰",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "abdomenLower": {
@@ -43,12 +40,10 @@
       "parent_mmd": "腰",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Lower abdomen = Main upper body",
       "parent_mmd_expected": "腰",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "abdomenUpper": {
@@ -59,12 +54,10 @@
       "parent_mmd": "上半身",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Upper abdomen = Upper body 1 bridge",
       "parent_mmd_expected": "上半身",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "chestLower": {
@@ -75,28 +68,24 @@
       "parent_mmd": "上半身1",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Lower chest = Upper body 2",
       "parent_mmd_expected": "上半身1",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "chestUpper": {
       "xps_name": "chestUpper",
-      "mmd_name": "",
-      "confidence": 0.0,
+      "mmd_name": "上半身3",
+      "confidence": 0.9,
       "parent_xps": "chestLower",
-      "parent_mmd": null,
-      "bone_type": "control",
-      "is_deform": false,
-      "position_offset": null,
-      "user_notes": "Upper chest - no direct MMD mapping (system handles via skeletal rebuild)",
-      "parent_mmd_expected": null,
+      "parent_mmd": "上半身2",
+      "bone_type": "spine",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Upper chest = Upper body 3 (for detailed deformation)",
+      "parent_mmd_expected": "上半身2",
       "parent_match": true,
-      "is_unmapped": true,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "neckLower": {
@@ -107,12 +96,10 @@
       "parent_mmd": "上半身2",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Lower neck",
       "parent_mmd_expected": "上半身2",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "neckUpper": {
@@ -123,12 +110,10 @@
       "parent_mmd": "首",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Upper neck / bridge to head",
       "parent_mmd_expected": "首",
       "parent_match": true,
-      "is_unmapped": false,
-      "vertex_group_count": 0,
       "source_info": "standard_xps"
     },
     "head": {
@@ -139,46 +124,375 @@
       "parent_mmd": "首1",
       "bone_type": "spine",
       "is_deform": true,
-      "position_offset": null,
+      "is_unmapped": false,
       "user_notes": "Head",
       "parent_mmd_expected": "首1",
       "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftEye": {
+      "xps_name": "leftEye",
+      "mmd_name": "左目",
+      "confidence": 0.98,
+      "parent_xps": "head",
+      "parent_mmd": "頭",
+      "bone_type": "eye",
+      "is_deform": true,
       "is_unmapped": false,
-      "vertex_group_count": 0,
+      "user_notes": "Left eye",
+      "parent_mmd_expected": "頭",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightEye": {
+      "xps_name": "rightEye",
+      "mmd_name": "右目",
+      "confidence": 0.98,
+      "parent_xps": "head",
+      "parent_mmd": "頭",
+      "bone_type": "eye",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right eye",
+      "parent_mmd_expected": "頭",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftShoulder": {
+      "xps_name": "leftShoulder",
+      "mmd_name": "左肩",
+      "confidence": 0.95,
+      "parent_xps": "chestUpper",
+      "parent_mmd": "上半身2",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left shoulder",
+      "parent_mmd_expected": "上半身2",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightShoulder": {
+      "xps_name": "rightShoulder",
+      "mmd_name": "右肩",
+      "confidence": 0.95,
+      "parent_xps": "chestUpper",
+      "parent_mmd": "上半身2",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right shoulder",
+      "parent_mmd_expected": "上半身2",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftArm": {
+      "xps_name": "leftArm",
+      "mmd_name": "左腕",
+      "confidence": 0.98,
+      "parent_xps": "leftShoulder",
+      "parent_mmd": "左肩",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left upper arm",
+      "parent_mmd_expected": "左肩",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightArm": {
+      "xps_name": "rightArm",
+      "mmd_name": "右腕",
+      "confidence": 0.98,
+      "parent_xps": "rightShoulder",
+      "parent_mmd": "右肩",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right upper arm",
+      "parent_mmd_expected": "右肩",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftForeArm": {
+      "xps_name": "leftForeArm",
+      "mmd_name": "左ひじ",
+      "confidence": 0.95,
+      "parent_xps": "leftArm",
+      "parent_mmd": "左腕",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left forearm / elbow",
+      "parent_mmd_expected": "左腕",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightForeArm": {
+      "xps_name": "rightForeArm",
+      "mmd_name": "右ひじ",
+      "confidence": 0.95,
+      "parent_xps": "rightArm",
+      "parent_mmd": "右腕",
+      "bone_type": "arm",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right forearm / elbow",
+      "parent_mmd_expected": "右腕",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftHand": {
+      "xps_name": "leftHand",
+      "mmd_name": "左手首",
+      "confidence": 0.95,
+      "parent_xps": "leftForeArm",
+      "parent_mmd": "左ひじ",
+      "bone_type": "hand",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left wrist / hand base",
+      "parent_mmd_expected": "左ひじ",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightHand": {
+      "xps_name": "rightHand",
+      "mmd_name": "右手首",
+      "confidence": 0.95,
+      "parent_xps": "rightForeArm",
+      "parent_mmd": "右ひじ",
+      "bone_type": "hand",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right wrist / hand base",
+      "parent_mmd_expected": "右ひじ",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftThighBend": {
+      "xps_name": "leftThighBend",
+      "mmd_name": "左足",
+      "confidence": 0.95,
+      "parent_xps": "pelvis",
+      "parent_mmd": "下半身",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left thigh / upper leg",
+      "parent_mmd_expected": "下半身",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightThighBend": {
+      "xps_name": "rightThighBend",
+      "mmd_name": "右足",
+      "confidence": 0.95,
+      "parent_xps": "pelvis",
+      "parent_mmd": "下半身",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right thigh / upper leg",
+      "parent_mmd_expected": "下半身",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftKnee": {
+      "xps_name": "leftKnee",
+      "mmd_name": "左ひざ",
+      "confidence": 0.96,
+      "parent_xps": "leftThighBend",
+      "parent_mmd": "左足",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left knee",
+      "parent_mmd_expected": "左足",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightKnee": {
+      "xps_name": "rightKnee",
+      "mmd_name": "右ひざ",
+      "confidence": 0.96,
+      "parent_xps": "rightThighBend",
+      "parent_mmd": "右足",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right knee",
+      "parent_mmd_expected": "右足",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftFoot": {
+      "xps_name": "leftFoot",
+      "mmd_name": "左足首",
+      "confidence": 0.96,
+      "parent_xps": "leftKnee",
+      "parent_mmd": "左ひざ",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left ankle / foot",
+      "parent_mmd_expected": "左ひざ",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightFoot": {
+      "xps_name": "rightFoot",
+      "mmd_name": "右足首",
+      "confidence": 0.96,
+      "parent_xps": "rightKnee",
+      "parent_mmd": "右足",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right ankle / foot",
+      "parent_mmd_expected": "右足",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftToe": {
+      "xps_name": "leftToe",
+      "mmd_name": "左つま先",
+      "confidence": 0.95,
+      "parent_xps": "leftFoot",
+      "parent_mmd": "左足首",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left toe",
+      "parent_mmd_expected": "左足首",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightToe": {
+      "xps_name": "rightToe",
+      "mmd_name": "右つま先",
+      "confidence": 0.95,
+      "parent_xps": "rightFoot",
+      "parent_mmd": "右足首",
+      "bone_type": "leg",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right toe",
+      "parent_mmd_expected": "右足首",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "leftThighTwist": {
+      "xps_name": "leftThighTwist",
+      "mmd_name": "左足捩",
+      "confidence": 0.85,
+      "parent_xps": "leftThighBend",
+      "parent_mmd": "左足",
+      "bone_type": "twist",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Left thigh twist bone",
+      "parent_mmd_expected": "左足",
+      "parent_match": true,
+      "source_info": "standard_xps"
+    },
+    "rightThighTwist": {
+      "xps_name": "rightThighTwist",
+      "mmd_name": "右足捩",
+      "confidence": 0.85,
+      "parent_xps": "rightThighBend",
+      "parent_mmd": "右足",
+      "bone_type": "twist",
+      "is_deform": true,
+      "is_unmapped": false,
+      "user_notes": "Right thigh twist bone",
+      "parent_mmd_expected": "右足",
+      "parent_match": true,
       "source_info": "standard_xps"
     }
   },
   "weight_rules": [
     {
-      "source_bone": "pelvis",
-      "target_bone": "下半身",
+      "source_bone": "leftThighBend",
+      "target_bone": "足D.L",
       "transfer_ratio": 1.0,
       "zone": "zone3",
       "falloff_type": "linear",
-      "blend_threshold": 0.5,
+      "blend_threshold": 0.46,
       "is_hip_cancel": false,
       "rule_type": "fk_to_d",
       "order": 1
+    },
+    {
+      "source_bone": "rightThighBend",
+      "target_bone": "足D.R",
+      "transfer_ratio": 1.0,
+      "zone": "zone3",
+      "falloff_type": "linear",
+      "blend_threshold": 0.46,
+      "is_hip_cancel": false,
+      "rule_type": "fk_to_d",
+      "order": 2
+    },
+    {
+      "source_bone": "leftKnee",
+      "target_bone": "ひざD.L",
+      "transfer_ratio": 1.0,
+      "zone": "zone3",
+      "falloff_type": "linear",
+      "blend_threshold": 0.0,
+      "is_hip_cancel": false,
+      "rule_type": "fk_to_d",
+      "order": 3
+    },
+    {
+      "source_bone": "rightKnee",
+      "target_bone": "ひざD.R",
+      "transfer_ratio": 1.0,
+      "zone": "zone3",
+      "falloff_type": "linear",
+      "blend_threshold": 0.0,
+      "is_hip_cancel": false,
+      "rule_type": "fk_to_d",
+      "order": 4
     }
   ],
   "ik_chains": {
-    "left_leg": [
-      "左足IK親",
-      "左足ＩＫ",
-      "左つま先ＩＫ"
-    ],
-    "right_leg": [
-      "右足IK親",
-      "右足ＩＫ",
-      "右つま先ＩＫ"
-    ]
+    "left_leg": {
+      "target": "左足ＩＫ",
+      "chain_bones": ["左足", "左ひざ", "左足首"],
+      "chain_length": 3,
+      "notes": "Left leg IK chain"
+    },
+    "right_leg": {
+      "target": "右足ＩＫ",
+      "chain_bones": ["右足", "右ひざ", "右足首"],
+      "chain_length": 3,
+      "notes": "Right leg IK chain"
+    },
+    "left_toe": {
+      "target": "左つま先ＩＫ",
+      "chain_bones": ["左足首", "左つま先"],
+      "chain_length": 2,
+      "notes": "Left toe IK chain"
+    },
+    "right_toe": {
+      "target": "右つま先ＩＫ",
+      "chain_bones": ["右足首", "右つま先"],
+      "chain_length": 2,
+      "notes": "Right toe IK chain"
+    }
   },
   "bone_groups": {
     "IK": [
+      "左足ＩＫ親",
       "左足ＩＫ",
+      "右足ＩＫ親",
       "右足ＩＫ",
       "左つま先ＩＫ",
-      "右つま先ＩＫ"
+      "右つま先ＩＫ",
+      "左手ＩＫ",
+      "右手ＩＫ"
     ],
     "Armature": [
       "全ての親",
@@ -194,12 +508,53 @@
       "下半身",
       "上半身",
       "上半身1",
-      "上半身2"
+      "上半身2",
+      "上半身3"
     ],
     "Neck": [
       "首",
       "首1",
       "頭"
+    ],
+    "Eyes": [
+      "左目",
+      "右目",
+      "両目"
+    ],
+    "Arms": [
+      "左肩",
+      "右肩",
+      "左腕",
+      "右腕",
+      "左ひじ",
+      "右ひじ",
+      "左手首",
+      "右手首"
+    ],
+    "Legs": [
+      "左足",
+      "右足",
+      "左ひざ",
+      "右ひざ",
+      "左足首",
+      "右足首",
+      "左つま先",
+      "右つま先"
+    ],
+    "D-Bone": [
+      "足D.L",
+      "足D.R",
+      "ひざD.L",
+      "ひざD.R",
+      "腕D.L",
+      "腕D.R"
+    ],
+    "Twist": [
+      "左腕捩",
+      "右腕捩",
+      "左足捩",
+      "右足捩",
+      "上半身捩"
     ]
   },
   "validation_status": {}
