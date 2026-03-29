@@ -776,7 +776,11 @@ class XPSPMX_PT_mmd_bone_tree(Panel):
         row.scale_y = 1.3
         row.operator("xpspmx_pipeline.stage_4_setup_constraints", text="🔗 Stage 4: 设置约束")
 
-        convert_box.label(text="⏳ Stage 5: 导出 PMX（开发中...）", icon='INFO')
+        row = convert_box.row(align=True)
+        row.scale_y = 1.3
+        row.operator("xpspmx_pipeline.stage_5_export_pmx", text="💾 Stage 5: 导出 PMX")
+
+        convert_box.label(text="✅ 完整转换流程已实现！", icon='INFO')
 
     def _draw_complete_tree(self, layout, mmd_skeleton: Dict, config, search_term: str, props):
         """Draw complete tree with all details."""

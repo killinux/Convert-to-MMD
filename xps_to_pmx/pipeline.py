@@ -267,14 +267,15 @@ def stage_setup_additional_transform(armature, context):
 def stage_export_pmx(armature, context, output_path):
     """
     Stage 5: 导出PMX
-    - 调用mmd_tools导出PMX格式
+    - 调用 Stage 5 操作符进行 PMX 导出
     """
     try:
         if not output_path:
             return False, "未指定输出路径"
 
-        # TODO: 调用mmd_tools PMX导出
-        # 暂时返回成功
+        # Call the Stage 5 operator
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.xpspmx_pipeline.stage_5_export_pmx(filepath=output_path)
         return True, f"导出完成: {output_path}"
 
     except Exception as e:

@@ -2,7 +2,7 @@
 
 from . import (stage_0_apply_mapping, stage_1_rebuild_skeleton,
                stage_2_apply_apose, stage_3_apply_weight_rules,
-               stage_4_setup_constraints)
+               stage_4_setup_constraints, stage_5_export_pmx)
 
 
 def register():
@@ -12,10 +12,12 @@ def register():
     stage_2_apply_apose.register()
     stage_3_apply_weight_rules.register()
     stage_4_setup_constraints.register()
+    stage_5_export_pmx.register()
 
 
 def unregister():
     """Unregister all pipeline operators."""
+    stage_5_export_pmx.unregister()
     stage_4_setup_constraints.unregister()
     stage_3_apply_weight_rules.unregister()
     stage_2_apply_apose.unregister()
