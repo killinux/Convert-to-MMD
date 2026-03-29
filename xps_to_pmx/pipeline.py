@@ -215,20 +215,13 @@ def run_full_pipeline(armature, context, output_path, skip_apose=False,
 def stage_rebuild_skeleton(armature, context):
     """
     Stage 1: 重建骨架
-    - 重命名骨骼
     - 创建缺失骨骼（グルーブ、腰、D骨、IK骨等）
     - 调整骨骼属性和父级关系
     """
     try:
-        bpy.ops.object.mode_set(mode='EDIT')
-        eb = armature.data.edit_bones
-
-        # TODO: 实现骨骼重建逻辑
-        # 1. 重命名现有骨骼
-        # 2. 创建新骨骼
-        # 3. 设置父级关系
-
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # Call the Stage 1 operator
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.xpspmx_pipeline.stage_1_rebuild_skeleton()
         return True, "骨架重建完成"
 
     except Exception as e:
