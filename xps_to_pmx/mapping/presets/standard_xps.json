@@ -1,8 +1,8 @@
 {
-  "name": "XPS Standard Format - Complete",
-  "version": "2.0",
+  "name": "XPS Standard Format - Zone-Based Weight Mapping",
+  "version": "3.0",
   "source_skeleton_type": "xps_standard",
-  "description": "Complete mapping for XPS standard skeleton including arms, legs, hands, feet, and special bones",
+  "description": "XPS to MMD mapping with weight zones to prevent conflicts: Zone1=脊椎(直接权重), Zone2=腰部(IK核心), Zone3=腿部(FK→D转移)",
   "bone_mappings": {
     "root hips": {
       "xps_name": "root hips",
@@ -12,8 +12,8 @@
       "parent_mmd": "全ての親",
       "bone_type": "center",
       "is_deform": false,
-      "is_unmapped": false,
-      "user_notes": "Root center bone",
+      "zone": "control",
+      "user_notes": "Root center bone - control only, no weight",
       "parent_mmd_expected": "全ての親",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -26,8 +26,8 @@
       "parent_mmd": "腰",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Lower body base",
+      "zone": "zone2",
+      "user_notes": "Lower body - main hip joint",
       "parent_mmd_expected": "腰",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -40,8 +40,8 @@
       "parent_mmd": "腰",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Lower abdomen = Main upper body",
+      "zone": "zone1",
+      "user_notes": "Lower abdomen = main upper body (direct weight)",
       "parent_mmd_expected": "腰",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -54,8 +54,8 @@
       "parent_mmd": "上半身",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Upper abdomen = Upper body 1 bridge",
+      "zone": "zone1",
+      "user_notes": "Upper abdomen = spine 1 bridge (direct weight)",
       "parent_mmd_expected": "上半身",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -68,8 +68,8 @@
       "parent_mmd": "上半身1",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Lower chest = Upper body 2",
+      "zone": "zone1",
+      "user_notes": "Lower chest = spine 2 (direct weight)",
       "parent_mmd_expected": "上半身1",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -82,8 +82,8 @@
       "parent_mmd": "上半身2",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Upper chest = Upper body 3 (for detailed deformation)",
+      "zone": "zone1",
+      "user_notes": "Upper chest = spine 3 (direct weight, optional)",
       "parent_mmd_expected": "上半身2",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -96,8 +96,8 @@
       "parent_mmd": "上半身2",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Lower neck",
+      "zone": "zone1",
+      "user_notes": "Lower neck (direct weight)",
       "parent_mmd_expected": "上半身2",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -110,8 +110,8 @@
       "parent_mmd": "首",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Upper neck / bridge to head",
+      "zone": "zone1",
+      "user_notes": "Upper neck - bridge to head (direct weight)",
       "parent_mmd_expected": "首",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -124,8 +124,8 @@
       "parent_mmd": "首1",
       "bone_type": "spine",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Head",
+      "zone": "zone1",
+      "user_notes": "Head (direct weight)",
       "parent_mmd_expected": "首1",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -137,9 +137,9 @@
       "parent_xps": "head",
       "parent_mmd": "頭",
       "bone_type": "eye",
-      "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left eye",
+      "is_deform": false,
+      "zone": "control",
+      "user_notes": "Left eye - NO weight",
       "parent_mmd_expected": "頭",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -151,9 +151,9 @@
       "parent_xps": "head",
       "parent_mmd": "頭",
       "bone_type": "eye",
-      "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right eye",
+      "is_deform": false,
+      "zone": "control",
+      "user_notes": "Right eye - NO weight",
       "parent_mmd_expected": "頭",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -166,8 +166,8 @@
       "parent_mmd": "上半身2",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left shoulder",
+      "zone": "zone1",
+      "user_notes": "Left shoulder - direct weight (FK bone)",
       "parent_mmd_expected": "上半身2",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -180,8 +180,8 @@
       "parent_mmd": "上半身2",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right shoulder",
+      "zone": "zone1",
+      "user_notes": "Right shoulder - direct weight (FK bone)",
       "parent_mmd_expected": "上半身2",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -194,8 +194,8 @@
       "parent_mmd": "左肩",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left upper arm",
+      "zone": "zone1",
+      "user_notes": "Left upper arm - direct weight (FK bone)",
       "parent_mmd_expected": "左肩",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -208,8 +208,8 @@
       "parent_mmd": "右肩",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right upper arm",
+      "zone": "zone1",
+      "user_notes": "Right upper arm - direct weight (FK bone)",
       "parent_mmd_expected": "右肩",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -222,8 +222,8 @@
       "parent_mmd": "左腕",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left forearm / elbow",
+      "zone": "zone1",
+      "user_notes": "Left elbow - direct weight (FK bone)",
       "parent_mmd_expected": "左腕",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -236,8 +236,8 @@
       "parent_mmd": "右腕",
       "bone_type": "arm",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right forearm / elbow",
+      "zone": "zone1",
+      "user_notes": "Right elbow - direct weight (FK bone)",
       "parent_mmd_expected": "右腕",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -250,8 +250,8 @@
       "parent_mmd": "左ひじ",
       "bone_type": "hand",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left wrist / hand base",
+      "zone": "zone1",
+      "user_notes": "Left wrist - direct weight (FK bone)",
       "parent_mmd_expected": "左ひじ",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -264,8 +264,8 @@
       "parent_mmd": "右ひじ",
       "bone_type": "hand",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right wrist / hand base",
+      "zone": "zone1",
+      "user_notes": "Right wrist - direct weight (FK bone)",
       "parent_mmd_expected": "右ひじ",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -278,8 +278,8 @@
       "parent_mmd": "下半身",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left thigh / upper leg",
+      "zone": "zone3",
+      "user_notes": "Left thigh - FK bone, weight transfers to足D.L",
       "parent_mmd_expected": "下半身",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -292,8 +292,8 @@
       "parent_mmd": "下半身",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right thigh / upper leg",
+      "zone": "zone3",
+      "user_notes": "Right thigh - FK bone, weight transfers to足D.R",
       "parent_mmd_expected": "下半身",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -306,8 +306,8 @@
       "parent_mmd": "左足",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left knee",
+      "zone": "zone3",
+      "user_notes": "Left knee - FK bone, weight transfers toひざD.L",
       "parent_mmd_expected": "左足",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -320,8 +320,8 @@
       "parent_mmd": "右足",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right knee",
+      "zone": "zone3",
+      "user_notes": "Right knee - FK bone, weight transfers toひざD.R",
       "parent_mmd_expected": "右足",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -334,8 +334,8 @@
       "parent_mmd": "左ひざ",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left ankle / foot",
+      "zone": "zone3",
+      "user_notes": "Left ankle - FK bone, weight transfers to足首D.L",
       "parent_mmd_expected": "左ひざ",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -348,8 +348,8 @@
       "parent_mmd": "右足",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right ankle / foot",
+      "zone": "zone3",
+      "user_notes": "Right ankle - FK bone, weight transfers to足首D.R",
       "parent_mmd_expected": "右足",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -362,8 +362,8 @@
       "parent_mmd": "左足首",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left toe",
+      "zone": "zone3",
+      "user_notes": "Left toe - minimal weight or no weight",
       "parent_mmd_expected": "左足首",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -376,8 +376,8 @@
       "parent_mmd": "右足首",
       "bone_type": "leg",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right toe",
+      "zone": "zone3",
+      "user_notes": "Right toe - minimal weight or no weight",
       "parent_mmd_expected": "右足首",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -390,8 +390,8 @@
       "parent_mmd": "左足",
       "bone_type": "twist",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Left thigh twist bone",
+      "zone": "zone3",
+      "user_notes": "Left thigh twist - small gradient weight (10-20%)",
       "parent_mmd_expected": "左足",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -404,8 +404,8 @@
       "parent_mmd": "右足",
       "bone_type": "twist",
       "is_deform": true,
-      "is_unmapped": false,
-      "user_notes": "Right thigh twist bone",
+      "zone": "zone3",
+      "user_notes": "Right thigh twist - small gradient weight (10-20%)",
       "parent_mmd_expected": "右足",
       "parent_match": true,
       "source_info": "standard_xps"
@@ -413,48 +413,100 @@
   },
   "weight_rules": [
     {
+      "rule_name": "Zone1 Spine - Direct Weight",
+      "description": "脊椎骨直接权重转移，无D骨冲突",
+      "source_bones": ["abdomenLower", "abdomenUpper", "chestLower", "chestUpper", "neckLower", "neckUpper", "head"],
+      "rule_type": "direct_transfer",
+      "zone": "zone1",
+      "action": "Keep weights as-is, no transfer",
+      "order": 1
+    },
+    {
+      "rule_name": "Zone2 Hip - D-Bone Transfer",
+      "description": "下半身权重保留，配合Zone3转移",
+      "source_bone": "pelvis",
+      "target_bone": "下半身",
+      "transfer_ratio": 1.0,
+      "zone": "zone2",
+      "falloff_type": "linear",
+      "blend_threshold": 0.46,
+      "rule_type": "fk_to_d",
+      "order": 2
+    },
+    {
+      "rule_name": "Zone3 Left Leg FK→D Transfer",
+      "description": "左足FK权重完全转移到足D.L，FK清零",
       "source_bone": "leftThighBend",
       "target_bone": "足D.L",
       "transfer_ratio": 1.0,
       "zone": "zone3",
       "falloff_type": "linear",
       "blend_threshold": 0.46,
-      "is_hip_cancel": false,
       "rule_type": "fk_to_d",
-      "order": 1
+      "clear_source": true,
+      "order": 3
     },
     {
+      "rule_name": "Zone3 Right Leg FK→D Transfer",
+      "description": "右足FK权重完全转移到足D.R，FK清零",
       "source_bone": "rightThighBend",
       "target_bone": "足D.R",
       "transfer_ratio": 1.0,
       "zone": "zone3",
       "falloff_type": "linear",
       "blend_threshold": 0.46,
-      "is_hip_cancel": false,
       "rule_type": "fk_to_d",
-      "order": 2
+      "clear_source": true,
+      "order": 4
     },
     {
+      "rule_name": "Zone3 Left Knee FK→D Transfer",
+      "description": "左ひざFK权重完全转移到ひざD.L，FK清零",
       "source_bone": "leftKnee",
       "target_bone": "ひざD.L",
       "transfer_ratio": 1.0,
       "zone": "zone3",
       "falloff_type": "linear",
-      "blend_threshold": 0.0,
-      "is_hip_cancel": false,
       "rule_type": "fk_to_d",
-      "order": 3
+      "clear_source": true,
+      "order": 5
     },
     {
+      "rule_name": "Zone3 Right Knee FK→D Transfer",
+      "description": "右ひざFK権重完全転移到ひざD.R，FK清零",
       "source_bone": "rightKnee",
       "target_bone": "ひざD.R",
       "transfer_ratio": 1.0,
       "zone": "zone3",
       "falloff_type": "linear",
-      "blend_threshold": 0.0,
-      "is_hip_cancel": false,
       "rule_type": "fk_to_d",
-      "order": 4
+      "clear_source": true,
+      "order": 6
+    },
+    {
+      "rule_name": "Zone3 Twist Bone Gradient",
+      "description": "扭转骨梯度权重分配（10-20%）",
+      "source_bones": ["leftThighTwist", "rightThighTwist"],
+      "rule_type": "twist_gradient",
+      "zone": "zone3",
+      "gradient_ratio": 0.15,
+      "order": 7
+    },
+    {
+      "rule_name": "Control Bones - ZERO Weight",
+      "description": "控制骨绝对无权重（センター、眼骨等）",
+      "target_bones": ["センター", "左目", "右目", "両目"],
+      "rule_type": "zero_weight",
+      "zone": "control",
+      "order": 8
+    },
+    {
+      "rule_name": "IK Bones - ZERO Weight",
+      "description": "IK骨绝对无权重（足IK、つま先IK等）",
+      "target_bones": ["左足ＩＫ親", "左足ＩＫ", "左つま先ＩＫ", "右足ＩＫ親", "右足ＩＫ", "右つま先ＩＫ"],
+      "rule_type": "zero_weight",
+      "zone": "control",
+      "order": 9
     }
   ],
   "ik_chains": {
@@ -462,66 +514,47 @@
       "target": "左足ＩＫ",
       "chain_bones": ["左足", "左ひざ", "左足首"],
       "chain_length": 3,
-      "notes": "Left leg IK chain"
+      "fk_chain": ["leftThighBend", "leftKnee", "leftFoot"],
+      "zone": "zone3",
+      "notes": "Left leg IK - FK weights transfer to D-bones"
     },
     "right_leg": {
       "target": "右足ＩＫ",
       "chain_bones": ["右足", "右ひざ", "右足首"],
       "chain_length": 3,
-      "notes": "Right leg IK chain"
+      "fk_chain": ["rightThighBend", "rightKnee", "rightFoot"],
+      "zone": "zone3",
+      "notes": "Right leg IK - FK weights transfer to D-bones"
     },
     "left_toe": {
       "target": "左つま先ＩＫ",
       "chain_bones": ["左足首", "左つま先"],
       "chain_length": 2,
-      "notes": "Left toe IK chain"
+      "fk_chain": ["leftFoot", "leftToe"],
+      "zone": "zone3",
+      "notes": "Left toe IK - minimal weight"
     },
     "right_toe": {
       "target": "右つま先ＩＫ",
       "chain_bones": ["右足首", "右つま先"],
       "chain_length": 2,
-      "notes": "Right toe IK chain"
+      "fk_chain": ["rightFoot", "rightToe"],
+      "zone": "zone3",
+      "notes": "Right toe IK - minimal weight"
     }
   },
   "bone_groups": {
-    "IK": [
-      "左足ＩＫ親",
-      "左足ＩＫ",
-      "右足ＩＫ親",
-      "右足ＩＫ",
-      "左つま先ＩＫ",
-      "右つま先ＩＫ",
-      "左手ＩＫ",
-      "右手ＩＫ"
-    ],
-    "Armature": [
-      "全ての親",
-      "センター",
-      "グルーブ"
-    ],
-    "Waist": [
-      "腰",
-      "腰キャンセル.L",
-      "腰キャンセル.R"
-    ],
-    "Spine": [
+    "Zone1_Spine": [
       "下半身",
       "上半身",
       "上半身1",
       "上半身2",
-      "上半身3"
-    ],
-    "Neck": [
+      "上半身3",
       "首",
       "首1",
       "頭"
     ],
-    "Eyes": [
-      "左目",
-      "右目",
-      "両目"
-    ],
-    "Arms": [
+    "Zone1_Arms": [
       "左肩",
       "右肩",
       "左腕",
@@ -531,7 +564,7 @@
       "左手首",
       "右手首"
     ],
-    "Legs": [
+    "Zone3_Legs": [
       "左足",
       "右足",
       "左ひざ",
@@ -541,20 +574,54 @@
       "左つま先",
       "右つま先"
     ],
-    "D-Bone": [
+    "Zone3_D-Bones": [
       "足D.L",
       "足D.R",
       "ひざD.L",
       "ひざD.R",
-      "腕D.L",
-      "腕D.R"
+      "足首D.L",
+      "足首D.R"
     ],
-    "Twist": [
-      "左腕捩",
-      "右腕捩",
+    "Zone3_Twist": [
       "左足捩",
       "右足捩",
+      "左腕捩",
+      "右腕捩",
       "上半身捩"
+    ],
+    "Control_IK": [
+      "左足IK親",
+      "左足ＩＫ",
+      "右足IK親",
+      "右足ＩＫ",
+      "左つま先ＩＫ",
+      "右つま先ＩＫ"
+    ],
+    "Control_Cancel": [
+      "腰キャンセル.L",
+      "腰キャンセル.R"
+    ],
+    "Control_Eyes": [
+      "左目",
+      "右目",
+      "両目"
+    ],
+    "Control_Root": [
+      "全ての親",
+      "センター",
+      "グルーブ",
+      "腰"
+    ]
+  },
+  "weight_conflict_prevention": {
+    "rules": [
+      "❌ Never assign weight to both FK and D-bone",
+      "❌ Never assign weight to IK bones",
+      "❌ Never assign weight to control bones (except twist)",
+      "✅ Zone1 (Spine/Arm): Direct weight transfer",
+      "✅ Zone2 (Hip): Core IK area - rigid control",
+      "✅ Zone3 (Legs): Strict FK→D-bone conversion",
+      "✅ Twist bones: Small gradient weight (10-20%)"
     ]
   },
   "validation_status": {}
