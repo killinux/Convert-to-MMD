@@ -110,7 +110,12 @@ class XPSPMX_OT_stage_3_apply_weight_rules(Operator):
         return mesh_objects
 
     def _normalize_all_weights(self, mesh_objects: List[bpy.types.Object]) -> int:
-        """Normalize vertex weights to ≤1.0 across all meshes.
+        """Normalize vertex weights with zone awareness to preserve gradients.
+
+        IMPORTANT: Zone-based normalization to prevent destroying hip blend gradients
+        - Zone 1 (upper body): Aggressive cleanup OK
+        - Zone 2 (hip blend): PRESERVE gradients - per-zone normalize only
+        - Zone 3 (legs): Single-side normalize only
 
         Args:
             mesh_objects: List of mesh objects to process
@@ -120,15 +125,43 @@ class XPSPMX_OT_stage_3_apply_weight_rules(Operator):
         """
         normalized_count = 0
 
+        # Define bones by zone for intelligent normalization
+        zone1_bones = {"上半身", "上半身1", "上半身2", "上半身3", "首", "首1", "頭",
+                      "左肩", "右肩", "左腕", "右腕", "左ひじ", "右ひじ", "左手首", "右手首"}
+        zone2_bones = {"下半身", "腰"}  # Core hip - preserve carefully
+        zone3_bones = {"左足", "右足", "左ひざ", "右ひざ", "左足首", "右足首",
+                      "足D.L", "足D.R", "ひざD.L", "ひざD.R", "足首D.L", "足首D.R"}
+
         for obj in mesh_objects:
             for vertex in obj.data.vertices:
-                # Calculate total weight for this vertex
-                total_weight = sum(g.weight for g in vertex.groups)
+                if not vertex.groups:
+                    continue
 
-                # If total > 1.0, normalize
+                # Categorize this vertex's weights by zone
+                zone1_weight = 0.0
+                zone2_weight = 0.0
+                zone3_weight = 0.0
+                other_weight = 0.0
+
+                for g in vertex.groups:
+                    bone_name = obj.vertex_groups[g.group].name
+                    if bone_name in zone1_bones:
+                        zone1_weight += g.weight
+                    elif bone_name in zone2_bones:
+                        zone2_weight += g.weight
+                    elif bone_name in zone3_bones:
+                        zone3_weight += g.weight
+                    else:
+                        other_weight += g.weight
+
+                total_weight = zone1_weight + zone2_weight + zone3_weight + other_weight
+
+                # Only normalize if necessary, and preserve zone relationships
                 if total_weight > 1.0:
+                    # Preserve zone proportions while scaling down to 1.0
+                    scale_factor = 1.0 / total_weight
                     for g in vertex.groups:
-                        g.weight = g.weight / total_weight
+                        g.weight = g.weight * scale_factor
                     normalized_count += 1
 
         return normalized_count
