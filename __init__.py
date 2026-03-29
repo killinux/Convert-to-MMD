@@ -1,6 +1,6 @@
 bl_info = {
     "name": "Convert to MMD",
-    "author": "UITCIS(空想幻灵)",
+    "author": "hehe",
     "version": (2, 2),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar",

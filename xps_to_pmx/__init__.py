@@ -15,12 +15,17 @@ bl_info = {
     "version": (1, 0, 0),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > XPS to PMX",
-    "description": "Convert XPS rigs to MMD format quickly",
+    "description": "Convert XPS rigs to MMD format quickly with flexible mapping system",
     "category": "Import-Export",
+    # 更新时间戳 - 用于检查插件版本
+    "last_updated": "2026-03-29 18:45:00",
+    # 版本历史
+    "wiki_url": "",
+    "tracker_url": "",
 }
 
 import bpy
-from . import ui, pipeline
+from . import ui, pipeline, mapping_ui, mmd_bone_tree_ui, operators
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -88,15 +93,33 @@ def unregister_properties():
 
 def register():
     """注册所有操作和UI面板"""
+    # 注册Scene属性
+    register_properties()
+
     # 注册UI模块中的所有类
     ui.register()
 
-    # 注册Scene属性
-    register_properties()
+    # 注册新的映射UI系统
+    mapping_ui.register()
+
+    # 注册 MMD 骨骼树形 UI
+    mmd_bone_tree_ui.register()
+
+    # 注册转换管道操作符
+    operators.register()
 
 
 def unregister():
     """注销所有操作和UI面板"""
+    # 注销转换管道操作符
+    operators.unregister()
+
+    # 注销 MMD 骨骼树形 UI
+    mmd_bone_tree_ui.unregister()
+
+    # 注销新的映射UI系统
+    mapping_ui.unregister()
+
     # 注销UI模块中的所有类
     ui.unregister()
 

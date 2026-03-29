@@ -1,0 +1,350 @@
+{
+  "name": "MMD Standard Skeleton (PD)",
+  "version": "1.0",
+  "description": "Authoritative source of truth for MMD bone hierarchy. Do NOT modify this file.",
+  "bones": {
+    "全ての親": {
+      "mmd_name": "全ての親",
+      "parent_mmd": null,
+      "is_deform": false,
+      "bone_type": "control",
+      "notes": "Root parent bone - top level control"
+    },
+    "センター": {
+      "mmd_name": "センター",
+      "parent_mmd": "全ての親",
+      "is_deform": false,
+      "bone_type": "center",
+      "notes": "Center bone - main movement control"
+    },
+    "グルーブ": {
+      "mmd_name": "グルーブ",
+      "parent_mmd": "センター",
+      "is_deform": false,
+      "bone_type": "control",
+      "notes": "Groove bone - intermediate control"
+    },
+    "腰": {
+      "mmd_name": "腰",
+      "parent_mmd": "グルーブ",
+      "is_deform": false,
+      "bone_type": "control",
+      "notes": "Waist control bone"
+    },
+    "下半身": {
+      "mmd_name": "下半身",
+      "parent_mmd": "腰",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Lower body deform bone"
+    },
+    "上半身": {
+      "mmd_name": "上半身",
+      "parent_mmd": "腰",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Main upper body"
+    },
+    "上半身1": {
+      "mmd_name": "上半身1",
+      "parent_mmd": "上半身",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Upper body 1 bridge"
+    },
+    "上半身2": {
+      "mmd_name": "上半身2",
+      "parent_mmd": "上半身1",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Upper body 2"
+    },
+    "首": {
+      "mmd_name": "首",
+      "parent_mmd": "上半身2",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Lower neck"
+    },
+    "首1": {
+      "mmd_name": "首1",
+      "parent_mmd": "首",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Upper neck / bridge to head"
+    },
+    "頭": {
+      "mmd_name": "頭",
+      "parent_mmd": "首1",
+      "is_deform": true,
+      "bone_type": "spine",
+      "notes": "Head"
+    },
+    "左肩": {
+      "mmd_name": "左肩",
+      "parent_mmd": "上半身2",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Left shoulder"
+    },
+    "左腕": {
+      "mmd_name": "左腕",
+      "parent_mmd": "左肩",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Left arm (upper arm)"
+    },
+    "左ひじ": {
+      "mmd_name": "左ひじ",
+      "parent_mmd": "左腕",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Left elbow"
+    },
+    "左手首": {
+      "mmd_name": "左手首",
+      "parent_mmd": "左ひじ",
+      "is_deform": true,
+      "bone_type": "hand",
+      "notes": "Left wrist"
+    },
+    "右肩": {
+      "mmd_name": "右肩",
+      "parent_mmd": "上半身2",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Right shoulder"
+    },
+    "右腕": {
+      "mmd_name": "右腕",
+      "parent_mmd": "右肩",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Right arm (upper arm)"
+    },
+    "右ひじ": {
+      "mmd_name": "右ひじ",
+      "parent_mmd": "右腕",
+      "is_deform": true,
+      "bone_type": "arm",
+      "notes": "Right elbow"
+    },
+    "右手首": {
+      "mmd_name": "右手首",
+      "parent_mmd": "右ひじ",
+      "is_deform": true,
+      "bone_type": "hand",
+      "notes": "Right wrist"
+    },
+    "左足": {
+      "mmd_name": "左足",
+      "parent_mmd": "下半身",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Left leg (upper leg / thigh)"
+    },
+    "左ひざ": {
+      "mmd_name": "左ひざ",
+      "parent_mmd": "左足",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Left knee"
+    },
+    "左足首": {
+      "mmd_name": "左足首",
+      "parent_mmd": "左ひざ",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Left ankle"
+    },
+    "右足": {
+      "mmd_name": "右足",
+      "parent_mmd": "下半身",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Right leg (upper leg / thigh)"
+    },
+    "右ひざ": {
+      "mmd_name": "右ひざ",
+      "parent_mmd": "右足",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Right knee"
+    },
+    "右足首": {
+      "mmd_name": "右足首",
+      "parent_mmd": "右ひざ",
+      "is_deform": true,
+      "bone_type": "leg",
+      "notes": "Right ankle"
+    },
+    "足D.L": {
+      "mmd_name": "足D.L",
+      "parent_mmd": "下半身",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Left leg D-bone (deform pair for FK to IK)"
+    },
+    "ひざD.L": {
+      "mmd_name": "ひざD.L",
+      "parent_mmd": "足D.L",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Left knee D-bone"
+    },
+    "足首D.L": {
+      "mmd_name": "足首D.L",
+      "parent_mmd": "ひざD.L",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Left ankle D-bone"
+    },
+    "足D.R": {
+      "mmd_name": "足D.R",
+      "parent_mmd": "下半身",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Right leg D-bone (deform pair for FK to IK)"
+    },
+    "ひざD.R": {
+      "mmd_name": "ひざD.R",
+      "parent_mmd": "足D.R",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Right knee D-bone"
+    },
+    "足首D.R": {
+      "mmd_name": "足首D.R",
+      "parent_mmd": "ひざD.R",
+      "is_deform": true,
+      "bone_type": "d_bone",
+      "notes": "Right ankle D-bone"
+    },
+    "左足IK親": {
+      "mmd_name": "左足IK親",
+      "parent_mmd": "全ての親",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Left leg IK parent"
+    },
+    "左足ＩＫ": {
+      "mmd_name": "左足ＩＫ",
+      "parent_mmd": "左足IK親",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Left leg IK"
+    },
+    "左つま先ＩＫ": {
+      "mmd_name": "左つま先ＩＫ",
+      "parent_mmd": "左足ＩＫ",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Left toe IK"
+    },
+    "右足IK親": {
+      "mmd_name": "右足IK親",
+      "parent_mmd": "全ての親",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Right leg IK parent"
+    },
+    "右足ＩＫ": {
+      "mmd_name": "右足ＩＫ",
+      "parent_mmd": "右足IK親",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Right leg IK"
+    },
+    "右つま先ＩＫ": {
+      "mmd_name": "右つま先ＩＫ",
+      "parent_mmd": "右足ＩＫ",
+      "is_deform": false,
+      "bone_type": "ik",
+      "notes": "Right toe IK"
+    },
+    "腰キャンセル.L": {
+      "mmd_name": "腰キャンセル.L",
+      "parent_mmd": "腰",
+      "is_deform": false,
+      "bone_type": "control",
+      "notes": "Left waist cancel bone"
+    },
+    "腰キャンセル.R": {
+      "mmd_name": "腰キャンセル.R",
+      "parent_mmd": "腰",
+      "is_deform": false,
+      "bone_type": "control",
+      "notes": "Right waist cancel bone"
+    },
+    "左腕捩": {
+      "mmd_name": "左腕捩",
+      "parent_mmd": "左腕",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Left arm twist bone"
+    },
+    "左手捩": {
+      "mmd_name": "左手捩",
+      "parent_mmd": "左手首",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Left hand twist bone"
+    },
+    "右腕捩": {
+      "mmd_name": "右腕捩",
+      "parent_mmd": "右腕",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Right arm twist bone"
+    },
+    "右手捩": {
+      "mmd_name": "右手捩",
+      "parent_mmd": "右手首",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Right hand twist bone"
+    },
+    "左足捩": {
+      "mmd_name": "左足捩",
+      "parent_mmd": "左足",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Left leg twist bone"
+    },
+    "右足捩": {
+      "mmd_name": "右足捩",
+      "parent_mmd": "右足",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Right leg twist bone"
+    },
+    "上半身捩": {
+      "mmd_name": "上半身捩",
+      "parent_mmd": "上半身",
+      "is_deform": true,
+      "bone_type": "control",
+      "notes": "Upper body twist bone"
+    },
+    "両目": {
+      "mmd_name": "両目",
+      "parent_mmd": "頭",
+      "is_deform": false,
+      "bone_type": "eye",
+      "notes": "Both eyes control"
+    },
+    "左目": {
+      "mmd_name": "左目",
+      "parent_mmd": "頭",
+      "is_deform": false,
+      "bone_type": "eye",
+      "notes": "Left eye"
+    },
+    "右目": {
+      "mmd_name": "右目",
+      "parent_mmd": "頭",
+      "is_deform": false,
+      "bone_type": "eye",
+      "notes": "Right eye"
+    }
+  }
+}

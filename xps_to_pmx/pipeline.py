@@ -1,20 +1,170 @@
 """
-XPS to PMX 转换流水线
+XPS to PMX Conversion Pipeline
+
+New architecture supports flexible mappings:
+- Stage 0: Apply bone mapping (rename XPS bones to MMD names)
+- Stage 1: Rebuild skeleton (cut, complete, adjust parents)
+- Stage 2: Apply A-Pose
+- Stage 3: Apply weight rules (transparent, rule-based)
+- Stage 4: Setup constraints and bone groups
+- Stage 5: Export PMX
 """
 
 import bpy
 from mathutils import Vector, Matrix
+from typing import Tuple, List, Optional, Dict
 from . import mapping, weights
+from .mapping import data_structures
 
 
-def run_full_pipeline(armature, context, output_path, skip_apose=False):
+# ─────────────────────────────────────────────────────────────────────────────
+# New Stage Functions (Flexible Mapping System)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def stage_apply_bone_mapping(armature, config: data_structures.MappingConfiguration) \
+        -> Tuple[bool, str]:
+    """Stage 0: Apply bone mapping configuration.
+
+    Renames XPS bones to MMD names according to the mapping configuration.
+    Also synchronizes all vertex group names.
+
+    Args:
+        armature: Target armature object
+        config: MappingConfiguration with bone mappings
+
+    Returns:
+        (success, message)
     """
-    执行完整转换流水线
+    if not armature or armature.type != 'ARMATURE':
+        return False, "Invalid armature"
+
+    try:
+        # Enter edit mode to rename bones
+        bpy.context.view_layer.objects.active = armature
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        renamed_count = 0
+        failed_bones = []
+
+        # Rename bones according to mapping
+        for xps_name, mapping_obj in config.bone_mappings.items():
+            bone = armature.data.edit_bones.get(xps_name)
+            if not bone:
+                failed_bones.append(xps_name)
+                continue
+
+            try:
+                bone.name = mapping_obj.mmd_name
+                renamed_count += 1
+            except Exception as e:
+                failed_bones.append(f"{xps_name}: {e}")
+
+        # Return to object mode
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Sync vertex groups with renamed bones
+        synced_count = 0
+        for obj in bpy.context.scene.objects:
+            if obj.type == 'MESH' and obj.vertex_groups:
+                for xps_name, mapping_obj in config.bone_mappings.items():
+                    vg = obj.vertex_groups.get(xps_name)
+                    if vg:
+                        vg.name = mapping_obj.mmd_name
+                        synced_count += 1
+
+        message = f"Renamed {renamed_count} bones, synced {synced_count} vertex groups"
+        if failed_bones:
+            message += f" (failed: {len(failed_bones)})"
+
+        return True, message
+
+    except Exception as e:
+        return False, f"Error during bone mapping: {e}"
+    finally:
+        if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def stage_apply_weight_rules(armature, config: data_structures.MappingConfiguration) \
+        -> Tuple[bool, str]:
+    """Stage 3: Apply weight transfer rules.
+
+    Executes all weight rules in order from the configuration.
+    This is transparent and auditable - each rule logs what it does.
+
+    Args:
+        armature: Target armature object
+        config: MappingConfiguration with weight rules
+
+    Returns:
+        (success, message)
+    """
+    if not armature or armature.type != 'ARMATURE':
+        return False, "Invalid armature"
+
+    try:
+        # Collect all mesh objects to process
+        mesh_objects = [
+            obj for obj in bpy.context.scene.objects
+            if obj.type == 'MESH' and obj.vertex_groups
+        ]
+
+        if not mesh_objects:
+            return False, "No mesh objects found"
+
+        # Apply all weight rules
+        if not config.weight_rules:
+            return True, "No weight rules to apply"
+
+        results = weights.apply_all_weight_rules(armature, mesh_objects, config.weight_rules)
+
+        # Build message
+        applied = len(results['applied_rules'])
+        failed = len(results['failed_rules'])
+        message = f"Applied {applied} weight rules"
+        if failed > 0:
+            message += f" ({failed} failed)"
+
+        # Log details
+        for log_line in results['logs'][:5]:
+            print(f"  {log_line}")
+        if len(results['logs']) > 5:
+            print(f"  ... and {len(results['logs']) - 5} more entries")
+
+        return failed == 0, message
+
+    except Exception as e:
+        return False, f"Error during weight rule application: {e}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Legacy Pipeline (refactored to use new stages)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_full_pipeline(armature, context, output_path, skip_apose=False,
+                      config: Optional[data_structures.MappingConfiguration] = None):
+    """
+    执行完整转换流水线（支持灵活映射系统）
     返回 (success: bool, results: list[str])
+
+    新流程：
+    - Stage 0: 应用骨骼映射（如果提供了配置）
+    - Stage 1: 重建骨架
+    - Stage 2: A-Pose 转换
+    - Stage 3: 应用权重规则（或使用旧的权重修复）
+    - Stage 4: 付与和 IK 设置
+    - Stage 5: 导出 PMX
     """
     results = []
 
     try:
+        # Stage 0: 应用骨骼映射（新系统）
+        if config:
+            success, msg = stage_apply_bone_mapping(armature, config)
+            results.append(f"Stage 0: {msg}")
+            if not success:
+                results.append("警告：骨骼映射可能不完整，继续处理")
+
         # Stage 1: 重建骨架
         success, msg = stage_rebuild_skeleton(armature, context)
         results.append(f"Stage 1: {msg}")
@@ -30,9 +180,16 @@ def run_full_pipeline(armature, context, output_path, skip_apose=False):
         else:
             results.append("Stage 2: 跳过（已是A-Pose）")
 
-        # Stage 3: 权重修复
-        success, msg = stage_fix_weights(armature, context)
-        results.append(f"Stage 3: {msg}")
+        # Stage 3: 权重处理
+        if config and config.weight_rules:
+            # 使用新的规则系统
+            success, msg = stage_apply_weight_rules(armature, config)
+            results.append(f"Stage 3 (新规则): {msg}")
+        else:
+            # 使用旧的权重修复方法
+            success, msg = stage_fix_weights(armature, context)
+            results.append(f"Stage 3 (旧方法): {msg}")
+
         if not success:
             return False, results
 

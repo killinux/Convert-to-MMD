@@ -1,0 +1,206 @@
+{
+  "name": "XPS Standard Format",
+  "version": "1.0",
+  "source_skeleton_type": "xps_standard",
+  "bone_mappings": {
+    "root hips": {
+      "xps_name": "root hips",
+      "mmd_name": "センター",
+      "confidence": 1.0,
+      "parent_xps": null,
+      "parent_mmd": "全ての親",
+      "bone_type": "spine",
+      "is_deform": false,
+      "position_offset": null,
+      "user_notes": "Root center bone",
+      "parent_mmd_expected": "全ての親",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "pelvis": {
+      "xps_name": "pelvis",
+      "mmd_name": "下半身",
+      "confidence": 1.0,
+      "parent_xps": "root hips",
+      "parent_mmd": "腰",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Lower body base",
+      "parent_mmd_expected": "腰",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "abdomenLower": {
+      "xps_name": "abdomenLower",
+      "mmd_name": "上半身",
+      "confidence": 1.0,
+      "parent_xps": "pelvis",
+      "parent_mmd": "腰",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Lower abdomen = Main upper body",
+      "parent_mmd_expected": "腰",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "abdomenUpper": {
+      "xps_name": "abdomenUpper",
+      "mmd_name": "上半身1",
+      "confidence": 0.95,
+      "parent_xps": "abdomenLower",
+      "parent_mmd": "上半身",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Upper abdomen = Upper body 1 bridge",
+      "parent_mmd_expected": "上半身",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "chestLower": {
+      "xps_name": "chestLower",
+      "mmd_name": "上半身2",
+      "confidence": 0.95,
+      "parent_xps": "abdomenUpper",
+      "parent_mmd": "上半身1",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Lower chest = Upper body 2",
+      "parent_mmd_expected": "上半身1",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "chestUpper": {
+      "xps_name": "chestUpper",
+      "mmd_name": "",
+      "confidence": 0.0,
+      "parent_xps": "chestLower",
+      "parent_mmd": null,
+      "bone_type": "control",
+      "is_deform": false,
+      "position_offset": null,
+      "user_notes": "Upper chest - no direct MMD mapping (system handles via skeletal rebuild)",
+      "parent_mmd_expected": null,
+      "parent_match": true,
+      "is_unmapped": true,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "neckLower": {
+      "xps_name": "neckLower",
+      "mmd_name": "首",
+      "confidence": 0.99,
+      "parent_xps": "chestLower",
+      "parent_mmd": "上半身2",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Lower neck",
+      "parent_mmd_expected": "上半身2",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "neckUpper": {
+      "xps_name": "neckUpper",
+      "mmd_name": "首1",
+      "confidence": 0.98,
+      "parent_xps": "neckLower",
+      "parent_mmd": "首",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Upper neck / bridge to head",
+      "parent_mmd_expected": "首",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    },
+    "head": {
+      "xps_name": "head",
+      "mmd_name": "頭",
+      "confidence": 1.0,
+      "parent_xps": "neckUpper",
+      "parent_mmd": "首1",
+      "bone_type": "spine",
+      "is_deform": true,
+      "position_offset": null,
+      "user_notes": "Head",
+      "parent_mmd_expected": "首1",
+      "parent_match": true,
+      "is_unmapped": false,
+      "vertex_group_count": 0,
+      "source_info": "standard_xps"
+    }
+  },
+  "weight_rules": [
+    {
+      "source_bone": "pelvis",
+      "target_bone": "下半身",
+      "transfer_ratio": 1.0,
+      "zone": "zone3",
+      "falloff_type": "linear",
+      "blend_threshold": 0.5,
+      "is_hip_cancel": false,
+      "rule_type": "fk_to_d",
+      "order": 1
+    }
+  ],
+  "ik_chains": {
+    "left_leg": [
+      "左足IK親",
+      "左足ＩＫ",
+      "左つま先ＩＫ"
+    ],
+    "right_leg": [
+      "右足IK親",
+      "右足ＩＫ",
+      "右つま先ＩＫ"
+    ]
+  },
+  "bone_groups": {
+    "IK": [
+      "左足ＩＫ",
+      "右足ＩＫ",
+      "左つま先ＩＫ",
+      "右つま先ＩＫ"
+    ],
+    "Armature": [
+      "全ての親",
+      "センター",
+      "グルーブ"
+    ],
+    "Waist": [
+      "腰",
+      "腰キャンセル.L",
+      "腰キャンセル.R"
+    ],
+    "Spine": [
+      "下半身",
+      "上半身",
+      "上半身1",
+      "上半身2"
+    ],
+    "Neck": [
+      "首",
+      "首1",
+      "頭"
+    ]
+  },
+  "validation_status": {}
+}
